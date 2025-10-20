@@ -34,7 +34,7 @@ Setup ini sangat bergantung pada pintasan keyboard (keybind) Openbox dan alias B
 | | `W + C` | `cheese` | Buka Kamera |
 | | `W + O` | `obs` | Buka OBS Studio |
 | | `W + F` | `thunar` | Buka File Manager |
-| **Sistem** | `W + R` | `openbox --reconfigure` | Restart Openbox (reload config) |
+| **Sistem** | `W + R` | `reboot` | Restart |
 | | `W + Q` | `systemctl poweroff` | Matikan Komputer |
 | | `W + D` | `toggle_show_desktop` | Tampilkan Desktop |
 | | `A + F4` | `kill` | Tutup Jendela Aktif |
