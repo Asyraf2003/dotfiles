@@ -32,7 +32,6 @@ Setelah instalasi Arch dasar selesai, ikuti langkah-langkah ini:
 
 Pastikan Anda memiliki `git` dan AUR Helper (misalnya `yay` atau `paru`) terinstal.
 
-```bash
 # Kloning dotfiles ke home directory
 git clone [https://github.com/Asyraf2003/dotfiles.git](https://github.com/Asyraf2003/dotfiles.git) ~/dotfiles
 
