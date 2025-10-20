@@ -33,22 +33,22 @@ Setelah instalasi Arch dasar selesai, ikuti langkah-langkah ini:
 Pastikan Anda memiliki `git` dan AUR Helper (misalnya `yay` atau `paru`) terinstal.
 
 # Kloning dotfiles ke home directory
-git clone [https://github.com/Asyraf2003/dotfiles.git](https://github.com/Asyraf2003/dotfiles.git) ~/dotfiles
+```git clone [https://github.com/Asyraf2003/dotfiles.git](https://github.com/Asyraf2003/dotfiles.git) ~/dotfiles```
 
 # Instal paket resmi (pacman)
 # Perintah ini akan menginstal semua tools utama (Openbox, Alacritty, Dunst, dsb.)
-sudo pacman -S --needed - < ~/dotfiles/pkglist_pacman.txt
+```sudo pacman -S --needed - < ~/dotfiles/pkglist_pacman.txt```
 
 # Instal paket AUR (yay)
 # Jika ada paket dari AUR, jalankan ini
-yay -S --needed - < ~/dotfiles/pkglist_aur.txt
+```yay -S --needed - < ~/dotfiles/pkglist_aur.txt```
 
-cd ~
+```cd ~```
 
 echo "Creating Symlinks..."
 
 # Configs Utama
-ln -s ~/dotfiles/.bashrc ~/.bashrc
+```ln -s ~/dotfiles/.bashrc ~/.bashrc
 ln -s ~/dotfiles/openbox ~/.config/openbox
 ln -s ~/dotfiles/alacritty ~/.config/alacritty
 ln -s ~/dotfiles/dunst ~/.config/dunst
@@ -57,5 +57,5 @@ ln -s ~/dotfiles/yay ~/.config/yay
 
 # Scripts
 ln -s ~/dotfiles/bin ~/bin
-
+```
 echo "Symlink Complete Yeaayyy! Time to reboot."
