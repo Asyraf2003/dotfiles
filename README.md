@@ -50,7 +50,7 @@ Instalasi Paket AUR (yay/paru)
 yay -S --needed - < ~/dotfiles/pkglist_aur.txt
 ```
 2. Membuat Symlink (Mengaktifkan Konfigurasi)
-Langkah ini membuat tautan simbolik dari file konfigurasi Anda di folder ~/dotfiles kembali ke lokasi aslinya (~/.config/).
+Langkah ini membuat tautan simbolik dari file konfigurasi Anda di folder ```~/dotfiles kembali ke lokasi aslinya (~/.config/).```
 
 ```Bash
 
