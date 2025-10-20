@@ -1,0 +1,2 @@
+$HOME/bin/livewall &
+systemctl --user start pipewire wireplumber pipewire-pulse

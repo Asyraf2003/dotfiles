@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Simple battery CLI (no icons)
+set -euo pipefail
+
+# Print: "Battery: 83% (Discharging) 03:10:22 remaining"
+# Flags:
+#   --warn [N]   -> print "Battery low: X%" if <= N (default 15), else silent success
+#   --percent     -> print only percentage number (e.g., 83)
+#   --status      -> print only status (Charging/Discharging/Full/Unknown)
+
+get_sys() {
+  local p path status cap
+  path="$(ls -d /sys/class/power_supply/BAT* 2>/dev/null | head -n1 || true)"
+  [[ -z "${path:-}" ]] && return 1
+  status="$(<"$path/status" 2>/dev/null || echo Unknown)"
+  cap="$(<"$path/capacity" 2>/dev/null || echo 0)"
+  echo "$status" "$cap"
+}
+
+get_acpi() {
+  # Output example: "Battery 0: Discharging, 65%, 03:10:22 remaining"
+  acpi -b 2>/dev/null | head -n1 || true
+}
+
+print_status() {
+  local line stat pct extra
+  if command -v acpi >/dev/null 2>&1 && line="$(get_acpi)"; then
+    [[ -z "$line" ]] && line=""
+  else
+    line=""
+  fi
+
+  if [[ -n "$line" ]]; then
+    stat="$(sed -E 's/.*: ([A-Za-z]+).*/\1/' <<<"$line")"
+    pct="$(sed -E 's/.* ([0-9]+)%.*/\1/' <<<"$line")"
+    extra="$(sed -E 's/.*%, *(.+)/\1/' <<<"$line")"
+  else
+    # fallback /sys
+    read -r stat pct < <(get_sys || echo "")
+    [[ -z "${stat:-}" ]] && { echo "Battery: N/A"; return 1; }
+    extra=""
+  fi
+
+  if [[ "${1:-}" == "--percent-only" ]]; then
+    echo "${pct:-0}"
+  elif [[ "${1:-}" == "--status-only" ]]; then
+    echo "${stat:-Unknown}"
+  else
+    [[ -n "${extra:-}" ]] && extra="  $extra"
+    echo "Battery: ${pct:-0}% (${stat:-Unknown})${extra}"
+  fi
+}
+
+if [[ "${1:-}" == "--percent" ]]; then
+  print_status --percent-only
+  exit $?
+elif [[ "${1:-}" == "--status" ]]; then
+  print_status --status-only
+  exit $?
+elif [[ "${1:-}" == "--warn" ]]; then
+  thr="${2:-15}"
+  pct="$(print_status --percent-only 2>/dev/null || echo 0)"
+  if [[ "$pct" =~ ^[0-9]+$ ]] && (( pct <= thr )); then
+    echo "Battery low: ${pct}%"
+    exit 1
+  else
+    exit 0
+  fi
+else
+  print_status
+fi

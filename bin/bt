@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+bt — helper CLI (bluetoothctl)
+
+Perintah:
+  bt on                        # power on
+  bt off                       # power off
+  bt status                    # status adapter & perangkat
+  bt scan [sec]                # scan (default 10 detik)
+  bt paired                    # daftar paired devices
+  bt devices                   # daftar semua devices yang pernah terlihat
+  bt connect MAC               # sambungkan ke device
+  bt disconnect MAC            # putuskan
+  bt pair MAC                  # pair
+  bt trust MAC                 # trust (auto connect)
+  bt remove MAC                # lupakan device
+  bt info MAC                  # info detail device
+EOF
+}
+
+runctl() {
+  bluetoothctl --timeout 20 "$@"
+}
+
+cmd="${1:-}"; shift || true
+case "${cmd}" in
+  on)  runctl power on ;;
+  off) runctl power off ;;
+  status)
+    echo "== Controller =="
+    runctl show
+    echo
+    echo "== Paired devices =="
+    runctl paired-devices || true
+    ;;
+  scan)
+    dur="${1:-10}"
+    runctl scan on >/dev/null 2>&1 &
+    pid=$!
+    echo "Scanning ${dur}s…"
+    sleep "${dur}"
+    runctl scan off || true
+    [[ -n "${pid:-}" ]] && kill "$pid" >/dev/null 2>&1 || true
+    runctl devices || true
+    ;;
+  paired)
+    runctl paired-devices || true
+    ;;
+  devices)
+    runctl devices || true
+    ;;
+  connect)
+    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC. contoh: bt connect AA:BB:CC:DD:EE:FF"; exit 1; }
+    runctl connect "${mac}"
+    ;;
+  disconnect)
+    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
+    runctl disconnect "${mac}"
+    ;;
+  pair)
+    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
+    runctl pair "${mac}"
+    ;;
+  trust)
+    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
+    runctl trust "${mac}"
+    ;;
+  remove)
+    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
+    runctl remove "${mac}"
+    ;;
+  info)
+    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
+    runctl info "${mac}"
+    ;;
+  ""|-h|--help|help)
+    usage
+    ;;
+  *)
+    echo "Perintah tidak dikenal: ${cmd}"; echo; usage; exit 1;;
+esac

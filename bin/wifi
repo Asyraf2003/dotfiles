@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+wifi — helper CLI (nmcli)
+
+Perintah:
+  wifi on                      # nyalakan radio Wi-Fi
+  wifi off                     # matikan radio Wi-Fi
+  wifi status                  # status perangkat & koneksi
+  wifi scan                    # scan SSID di sekitar
+  wifi list                    # daftar SSID (ringkas)
+  wifi connect "SSID" [PASS]   # hubungkan (PASS opsional kalau open)
+  wifi disconnect              # putuskan koneksi aktif
+  wifi saved                   # daftar koneksi tersimpan
+  wifi delete "SSID"           # hapus profil tersimpan SSID
+  wifi ip                      # tampilkan IP saat ini
+EOF
+}
+
+cmd="${1:-}"; shift || true
+case "${cmd}" in
+  on)
+    nmcli radio wifi on
+    ;;
+  off)
+    nmcli radio wifi off
+    ;;
+  status)
+    echo "== Device =="
+    nmcli -f DEVICE,TYPE,STATE,CONNECTION dev status
+    echo
+    echo "== General =="
+    nmcli -f WIFI,HARDWARE general
+    echo
+    echo "== Active connection =="
+    nmcli -f NAME,UUID,TYPE,DEVICE connection show --active
+    ;;
+  scan)
+    nmcli dev wifi rescan
+    echo "Scanning…"
+    sleep 1
+    nmcli -f SSID,SIGNAL,SECURITY dev wifi list | sed '1,1!b; s/SECURITY/SEC/;'
+    ;;
+  list)
+    nmcli -t -f SSID,SECURITY,SIGNAL dev wifi list | sort -t: -k3 -nr | awk -F: 'NF{printf "%-32s  %-8s  %s%%\n",$1,$2,$3}'
+    ;;
+  connect)
+    ssid="${1:-}"; pass="${2:-}"
+    if [[ -z "${ssid}" ]]; then echo "Butuh SSID. contoh: wifi connect \"NamaWiFi\" [password]"; exit 1; fi
+    if [[ -z "${pass}" ]]; then
+      nmcli dev wifi connect "${ssid}"
+    else
+      nmcli dev wifi connect "${ssid}" password "${pass}"
+    fi
+    ;;
+  disconnect)
+    dev="$(nmcli -t -f DEVICE,TYPE,STATE dev | awk -F: '$2=="wifi" && $3=="connected"{print $1; exit}')"
+    [[ -n "${dev}" ]] && nmcli dev disconnect "${dev}" || echo "Tidak ada Wi-Fi yang tersambung."
+    ;;
+  saved)
+    nmcli -f NAME,UUID,TYPE,DEVICE connection show | awk '$3=="wifi"{print}'
+    ;;
+  delete)
+    ssid="${1:-}"
+    if [[ -z "${ssid}" ]]; then echo "Butuh SSID. contoh: wifi delete \"NamaWiFi\""; exit 1; fi
+    nmcli connection delete "${ssid}"
+    ;;
+  ip)
+    ip -brief addr show | grep -E 'wlan|wl|wifi' || true
+    ;;
+  ""|-h|--help|help)
+    usage
+    ;;
+  *)
+    echo "Perintah tidak dikenal: ${cmd}"; echo; usage; exit 1;;
+esac
+

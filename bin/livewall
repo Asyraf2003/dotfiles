@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Live wallpaper (no flicker, hot-swap via mpv IPC)
+# Pakai:
+#   livewall                   -> start pakai default
+#   livewall /path/video.mp4   -> ganti video (1x, tanpa kedip)
+#   livewall --stop            -> berhenti
+
+LOG="$HOME/.cache/livewall.log"
+mkdir -p "$(dirname "$LOG")"
+log(){ printf "[%(%F %T)T] %s\n" -1 "$*" >> "$LOG"; }
+
+IPC="/tmp/livewall.mpv.sock"
+XWINWRAP="/usr/bin/xwinwrap"
+MPV="/usr/bin/mpv"
+
+# --- Stop cepat: minta mpv quit lewat IPC; kalau gagal, paksa ---
+if [[ "$1" == "--stop" ]]; then
+  if [[ -S "$IPC" ]]; then
+    printf '{"command":["quit"]}\n' | socat - "$IPC" 2>/dev/null && log "stop: via IPC" && exit 0
+  fi
+  pkill -f "xwinwrap.*mpv" 2>/dev/null && log "stop: killed"
+  exit 0
+fi
+
+FILE="${1:-$HOME/Images/Live-wallpaper/sjw4.mp4}"
+if [[ ! -f "$FILE" ]]; then
+  log "error: file not found: $FILE"
+  exit 1
+fi
+
+# --- Jika mpv sudah hidup (IPC ada), cukup loadfile (no flicker) ---
+if [[ -S "$IPC" ]]; then
+  # skip bila sama
+  if socat - "UNIX-CONNECT:$IPC" 2>/dev/null <<< $'{"command":["get_property","path"]}\n' \
+     | grep -F "\"$FILE\"" >/dev/null 2>&1; then
+    log "noop: same file -> $FILE"
+    exit 0
+  fi
+  printf '{"command":["loadfile","%s","replace"]}\n' "$FILE" | socat - "$IPC" 2>/dev/null \
+    && log "swap: replace -> $FILE" && exit 0
+  # kalau IPC gagal, lanjut start baru di bawah
+fi
+
+# --- Start baru (pertama kali) ---
+DIM="$(xwininfo -root 2>/dev/null | awk '
+  /Width:/  {w=$2}
+  /Height:/ {h=$2}
+  END{ if(w&&h) print w"x"h }')"
+[[ -z "$DIM" ]] && DIM="1920x1080"
+
+# bereskan instance liar (tanpa flicker karena yang baru akan langsung render)
+pkill -f "xwinwrap.*mpv" 2>/dev/null
+
+log "start: dim=$DIM file=$FILE"
+
+# jalankan xwinwrap + mpv dengan IPC diaktifkan
+# catatan: --idle=yes biar mpv tetap hidup meski file gagal, jadi IPC tetap ada
+setsid "$XWINWRAP" -ni -ov -g "${DIM}+0+0" -- \
+  "$MPV" --no-config --force-window=immediate --idle=yes \
+         --input-ipc-server="$IPC" \
+         --no-audio --loop --panscan=1.0 \
+         --profile=low-latency --framedrop=decoder --untimed --start=0 \
+         --no-osc --no-osd-bar --no-terminal --quiet --no-input-default-bindings \
+         -wid %WID% "$FILE" >>"$LOG" 2>&1 &
+disown

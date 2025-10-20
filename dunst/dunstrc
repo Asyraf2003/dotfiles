@@ -1,0 +1,41 @@
+[global]
+    monitor = 0
+    follow = mouse
+    width = 300
+    height = 60
+    origin = center
+    offset = 0,0
+    transparency = 10
+    frame_width = 1
+    frame_color = "#444444"
+    separator_color = frame
+    padding = 6
+    horizontal_padding = 8
+    font = Sans 10
+    corner_radius = 8
+    alignment = center
+    word_wrap = yes
+    indicate_hidden = no
+    shrink = yes
+    idle_threshold = 0
+    notification_limit = 1
+    history_length = 10
+    sort = no
+    show_indicators = no
+    line_height = 0
+    markup = no
+
+[urgency_low]
+    background = "#222222"
+    foreground = "#eeeeee"
+    timeout = 1200
+
+[urgency_normal]
+    background = "#222222"
+    foreground = "#ffffff"
+    timeout = 1200
+
+[urgency_critical]
+    background = "#550000"
+    foreground = "#ffffff"
+    timeout = 1200

@@ -1,0 +1,22 @@
+#!/bin/bash
+# ProtonVPN WireGuard - vpn-off (final)
+set -e
+echo "[+] Mematikan ProtonVPN..."
+
+EP="185.177.125.13"
+IFACE="asyraf"
+
+# 1) Matikan WireGuard
+sudo wg-quick down "$IFACE" || true
+
+# 2) Hapus route endpoint
+sudo ip route del "$EP" 2>/dev/null || true
+
+# 3) Pulihkan DNS
+if [ -f /etc/resolv.conf.backup ]; then
+  sudo mv /etc/resolv.conf.backup /etc/resolv.conf
+else
+  echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+fi
+
+echo "[+] VPN dimatikan dan DNS aman."
