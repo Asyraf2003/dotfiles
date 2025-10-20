@@ -20,7 +20,6 @@ Setup ini bertujuan untuk menciptakan lingkungan kerja yang:
 | **Terminal Emulator** | Alacritty (Akselerasi GPU, Ultra-Cepat) | `alacritty/` |
 | **Shell** | Bash (dengan *aliases* dan *function* kustom) | `.bashrc` |
 | **Keybind Scripts** | Skrip utilitas harian (*reboot*, *vpn*, dll.) | `bin/` |
-| **Notifikasi** | Dunst (Notifikasi Minimalis) | `dunst/` |
 
 ---
 
@@ -63,7 +62,6 @@ Creating Symlinks...
 ln -s ~/dotfiles/.bashrc ~/.bashrc
 ln -s ~/dotfiles/openbox ~/.config/openbox
 ln -s ~/dotfiles/alacritty ~/.config/alacritty
-ln -s ~/dotfiles/dunst ~/.config/dunst
 ln -s ~/dotfiles/htop ~/.config/htop
 ln -s ~/dotfiles/yay ~/.config/yay
 ln -s ~/dotfiles/bin ~/bin
