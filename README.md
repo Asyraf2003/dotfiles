@@ -41,8 +41,6 @@ git clone [https://github.com/Asyraf2003/dotfiles.git](https://github.com/Asyraf
 ```
 Instalasi Paket Resmi (Pacman)
 ```Bash
-
-# Perintah ini akan menginstal semua tools utama (Openbox, Alacritty, Dunst, dsb.)
 sudo pacman -S --needed - < ~/dotfiles/pkglist_pacman.txt
 ```
 Instalasi Paket AUR (yay/paru)
@@ -57,22 +55,21 @@ Langkah ini membuat tautan simbolik dari file konfigurasi Anda di folder ~/dotfi
 ```Bash
 
 cd ~
-
-echo "Creating Symlinks..."
+```
+Creating Symlinks...
 
 # Configs Utama
+```Bash
 ln -s ~/dotfiles/.bashrc ~/.bashrc
 ln -s ~/dotfiles/openbox ~/.config/openbox
 ln -s ~/dotfiles/alacritty ~/.config/alacritty
 ln -s ~/dotfiles/dunst ~/.config/dunst
 ln -s ~/dotfiles/htop ~/.config/htop
 ln -s ~/dotfiles/yay ~/.config/yay
-
-# Scripts
 ln -s ~/dotfiles/bin ~/bin
 ```
 
-echo "Symlink Complete Yeaayyy!"
+Symlink Complete Yeaayyy!"
 
 3. Selesai dan Reboot
 Setelah semua symlink dibuat, logout dan login kembali, atau reboot sistem Anda agar konfigurasi Openbox, Bash, dan Alacritty yang baru dapat dimuat.
