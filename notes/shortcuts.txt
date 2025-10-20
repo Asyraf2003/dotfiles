@@ -1,0 +1,70 @@
+====== Terminal & Scripts ======
+vpn-on            : Aktifkan ProtonVPN (WireGuard, DNS aman)
+vpn-off           : Matikan ProtonVPN & pulihkan DNS
+bt on/off         : Nyalakan atau matikan Bluetooth
+bt status         : Cek status adapter & perangkat
+bt scan [sec]     : Scan perangkat Bluetooth (default 10 detik)
+bt paired         : Tampilkan perangkat yang sudah dipair
+bt devices        : Tampilkan semua perangkat yang pernah terlihat
+bt connect MAC    : Hubungkan ke perangkat Bluetooth
+bt disconnect MAC : Putuskan koneksi perangkat
+bt pair MAC       : Pair perangkat baru
+bt trust MAC      : Tandai perangkat agar auto connect
+bt remove MAC     : Lupakan perangkat
+bt info MAC       : Lihat info detail perangkat
+
+wifi on/off       : Aktif/nonaktif Wi-Fi
+wifi status       : Lihat status koneksi Wi-Fi
+wifi scan/list    : Scan atau tampilkan SSID di sekitar
+wifi connect "SSID" [PASS] : Sambung ke jaringan Wi-Fi
+wifi disconnect   : Putus koneksi aktif
+wifi saved        : Lihat daftar jaringan tersimpan
+wifi delete "SSID": Hapus profil tersimpan
+wifi ip           : Lihat IP Wi-Fi saat ini
+
+btr               : Cek status baterai
+update            : Update sistem Arch (sudo pacman -Syu)
+cleanpkg          : Bersihkan cache paket
+lsd               : List direktori detail
+helpme            : Tampilkan catatan ini
+
+====== Openbox Shortcuts ======
+W+Return          : Buka Terminal (Alacritty)
+W+B               : Buka Brave Browser
+W+V               : Buka VS Code
+W+S               : Buka Spotify
+W+C               : Buka Kamera (Cheese)
+W+O               : Buka OBS Studio
+W+F               : Buka File Manager (Thunar)
+W+R               : Restart (reboot)
+W+Q               : Matikan komputer (poweroff)
+W+D               : Tampilkan desktop
+A+F4              : Tutup jendela aktif
+A+Space           : Buka menu jendela
+A+Tab / A+S+Tab   : Pindah antar jendela
+C+A+Arrow         : Pindah antar desktop
+S+A+Arrow         : Kirim jendela ke desktop lain
+W+Arrow           : Geser jendela setengah layar
+W+S+Arrow         : Geser jendela ke pojok layar
+Print             : Screenshot penuh
+A+Print           : Screenshot jendela
+S+Print           : Screenshot area
+
+====== Network Info ======
+Interface Wi-Fi   : wlp2s0
+Gateway           : 192.168.8.1
+DNS Default       : 8.8.8.8, 1.1.1.1
+IPv6              : disabled
+
+====== Catatan ======
+ping 192.168.8.1  : Tes koneksi ke router
+curl ifconfig.me  : Lihat IP publik
+sudo wg           : Cek status VPN aktif
+
+====== Wallpaper ======
+livewall ~/Images/Live-wallpaper/nama-wallpaper.mp4 : Ganti Live Wallpaper
+livewall --stop : Matikan Live Wallpaper
+
+====== Maria Sql ======
+mariastart : Jalankan mysql dan phpmyadmin 
+mariastop : Matikan mysql dan phpmyadmin

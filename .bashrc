@@ -43,5 +43,5 @@ nginxstatus() {
     echo "Checking Nginx status..."
     systemctl status nginx.service --no-pager
 }
-alias helpme="batcat ~/.local/share/system-notes.md 2>/dev/null || cat ~/.local/share/system-notes.md"
-alias helpme="cat ~/.local/share/system-shortcuts.txt"
+
+alias helpme="cat ~/.dotfiles/notes/shortcuts.txt"
