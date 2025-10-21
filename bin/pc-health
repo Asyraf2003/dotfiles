@@ -1,0 +1,17 @@
+#!/bin/bash
+# Simple system health summary for Asyraf
+
+echo "🧠 Memory usage:"
+free -h | awk '/Mem:/ {print "  Used:", $3 " / " $2, " |  Free:", $4}'
+
+echo
+echo "💾 Storage usage:"
+df -h / | awk 'NR==2 {print "  Root:", $3 " used of " $2 " (" $5 ")"}'
+
+if command -v nvme &>/dev/null; then
+  TEMP=$(sudo nvme smart-log /dev/nvme0n1 | grep -m1 "temperature" | awk '{print $3,$4}')
+  USE=$(sudo nvme smart-log /dev/nvme0n1 | grep -m1 "percentage_used" | awk '{print $3}')
+  echo
+  echo "⚙️  NVMe Health:"
+  echo "  Temp: $TEMP  |  Used: $USE"
+fi

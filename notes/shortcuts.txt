@@ -27,6 +27,7 @@ update            : Update sistem Arch (sudo pacman -Syu)
 cleanpkg          : Bersihkan cache paket
 lsd               : List direktori detail
 helpme            : Tampilkan catatan ini
+pc-health	  : Cek kondisi PC(memory, storage, nvme)
 
 ====== Openbox Shortcuts ======
 W+Return          : Buka Terminal (Alacritty)
