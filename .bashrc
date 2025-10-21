@@ -45,3 +45,4 @@ nginxstatus() {
 }
 
 alias helpme="cat ~/.dotfiles/notes/shortcuts.txt"
+alias update="sudo pacman -Syu | tee -a ~/pacman-update.log"

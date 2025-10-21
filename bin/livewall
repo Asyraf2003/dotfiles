@@ -22,7 +22,7 @@ if [[ "$1" == "--stop" ]]; then
   exit 0
 fi
 
-FILE="${1:-$HOME/Images/Live-wallpaper/sjw4.mp4}"
+FILE="${1:-$HOME/Images/Live-wallpaper/wallpaper.mp4}"
 if [[ ! -f "$FILE" ]]; then
   log "error: file not found: $FILE"
   exit 1
