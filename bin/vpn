@@ -1,0 +1,144 @@
+#!/bin/bash
+# ProtonVPN WireGuard — single entrypoint
+# Usage: vpn on|off|restart|test|status|help
+set -Eeuo pipefail
+
+### ====== KONFIG SESUAI PUNYA ASYRAF ======
+EP="185.177.125.13"            # Endpoint IP dari [Peer]
+GW="192.168.8.1"               # Gateway Wi-Fi kamu
+DEV="wlp2s0"                   # Interface Wi-Fi kamu
+IFACE="asyraf"                 # Nama interface WG (nama file conf)
+CONF="/etc/wireguard/asyraf.conf"
+PEER_PUB="jJilN4ZNv7G6Cs64Rv422Ar05/qWNw0l4cXQ8n/O5Vg="
+MTU="1320"
+DNS1="8.8.8.8"
+DNS2="1.1.1.1"
+
+### ====== UTIL ======
+have() { command -v "$1" >/dev/null 2>&1; }
+is_up() { ip link show "$IFACE" &>/dev/null; }
+flush_dns() {
+  resolvectl flush-caches 2>/dev/null || systemd-resolve --flush-caches 2>/dev/null || true
+}
+ensure_dns_global() {
+  echo -e "nameserver $DNS1\nnameserver $DNS2" | sudo tee /etc/resolv.conf >/dev/null
+  flush_dns
+}
+sed_no_dns() { sudo sed -i '/^[[:space:]]*DNS[[:space:]]*=/d' "$CONF" 2>/dev/null || true; }
+
+### ====== ACTIONS ======
+vpn_on() {
+  echo "[+] Starting ProtonVPN (WireGuard)..."
+
+  # Idempotent: kalau sudah aktif, cuma refresh
+  if is_up; then
+    echo "[i] $IFACE sudah aktif; refresh keepalive + DNS."
+    sudo wg set "$IFACE" peer "$PEER_PUB" persistent-keepalive 25 || true
+    ensure_dns_global
+    exit 0
+  fi
+
+  # Backup DNS sekali
+  [ -f /etc/resolv.conf ] && sudo cp -n /etc/resolv.conf /etc/resolv.conf.backup 2>/dev/null || true
+
+  # Pastikan WG tidak utak-atik DNS
+  sed_no_dns
+
+  # Static route ke endpoint agar 'wg-quick up' tidak unreachable
+  sudo ip route replace "$EP" via "$GW" dev "$DEV"
+  echo "[+] Static route -> $EP via $GW dev $DEV"
+
+  # Naikkan WireGuard
+  sudo wg-quick up "$IFACE"
+
+  # Set MTU + keepalive
+  sudo ip link set mtu "$MTU" dev "$IFACE" || true
+  sudo wg set "$IFACE" peer "$PEER_PUB" persistent-keepalive 25 || true
+
+  # Paksa DNS global setiap connect
+  ensure_dns_global
+
+  echo "[+] VPN aktif tanpa mengubah DNS lokal."
+}
+
+vpn_off() {
+  echo "[+] Mematikan ProtonVPN..."
+  if is_up; then
+    sudo wg-quick down "$IFACE" || true
+  else
+    echo "[i] $IFACE sudah non-aktif; skip wg-quick down."
+  fi
+  # Bersihkan route endpoint
+  sudo ip route del "$EP" 2>/dev/null || true
+  # Pulihkan DNS
+  if [ -f /etc/resolv.conf.backup ]; then
+    sudo mv /etc/resolv.conf.backup /etc/resolv.conf
+  else
+    ensure_dns_global
+  fi
+  echo "[+] VPN dimatikan & DNS aman."
+}
+
+vpn_restart() { vpn_off; sleep 1; vpn_on; }
+
+vpn_status() {
+  echo "=== WireGuard status ==="
+  if is_up; then
+    sudo wg | sed -n '1,80p'
+  else
+    echo "$IFACE: down"
+  fi
+  echo
+  echo "=== Routing ==="
+  ip route
+  echo
+  echo "=== DNS (/etc/resolv.conf) ==="
+  cat /etc/resolv.conf
+}
+
+vpn_test() {
+  echo "=== TEST ==="
+  echo -n "[i] Public IP: "; curl -s --max-time 5 ifconfig.me || echo "N/A"
+  echo
+  echo -n "[i] WG handshake: "
+  if is_up; then
+    sudo wg | awk '/latest handshake/{print $3,$4,$5; exit}'
+  else
+    echo "interface down"
+  fi
+  echo "[i] DNS reddit.com:"
+  if have dig; then
+    dig +short reddit.com || true
+  else
+    getent hosts reddit.com || true
+  fi
+  echo "[i] HTTPS checks:"
+  curl -Is --max-time 10 https://www.reddit.com | head -n1 || echo "reddit: fail"
+  curl -Is --max-time 10 https://www.cloudflare.com | head -n1 || echo "cloudflare: fail"
+  curl -Is --max-time 10 https://github.com | head -n1 || echo "github: fail"
+}
+
+usage() {
+  cat <<EOF
+Usage: vpn {on|off|restart|test|status|help}
+
+  on       : aktifkan VPN (idempotent, auto MTU=$MTU, DNS $DNS1/$DNS2)
+  off      : matikan VPN & pulihkan DNS
+  restart  : off lalu on
+  status   : ringkasan WG, routing, DNS
+  test     : cek IP publik, handshake, DNS, dan HTTPS
+  help     : tampilan ini
+EOF
+}
+
+### ====== DISPATCH ======
+cmd="${1:-help}"
+case "$cmd" in
+  on) vpn_on ;;
+  off) vpn_off ;;
+  restart) vpn_restart ;;
+  status) vpn_status ;;
+  test) vpn_test ;;
+  help|--help|-h) usage ;;
+  *) echo "Unknown command: $cmd"; usage; exit 1 ;;
+esac
