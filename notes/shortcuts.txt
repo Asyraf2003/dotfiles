@@ -1,6 +1,9 @@
 ====== Terminal & Scripts ======
-vpn-on            : Aktifkan ProtonVPN (WireGuard, DNS aman)
-vpn-off           : Matikan ProtonVPN & pulihkan DNS
+vpn on            : Aktifkan ProtonVPN (WireGuard, DNS aman)
+vpn off           : Matikan ProtonVPN & pulihkan DNS
+vpn test          : Uji Jaringan
+vpn status        : Untuk tau DNS saat ini diserver apa
+vpn restart	  : Matikan dan hidupkan VPN kembali
 bt on/off         : Nyalakan atau matikan Bluetooth
 bt status         : Cek status adapter & perangkat
 bt scan [sec]     : Scan perangkat Bluetooth (default 10 detik)
