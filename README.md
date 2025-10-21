@@ -50,24 +50,26 @@ Setup ini sangat bergantung pada pintasan keyboard (keybind) Openbox dan alias B
 
 ### 🔨 Skrip Kustom & Aliases (Scripts in `~/bin/` & `.bashrc`)
 
-| Kategori | Perintah (Alias/Script) | Fungsi | Lokasi |
-| :--- | :--- | :--- | :--- |
-| **VPN (WireGuard)** | `vpn-on` | N/A | Aktifkan ProtonVPN (WireGuard) |
-| | `vpn-off` | N/A | Matikan ProtonVPN & pulihkan DNS |
-| **Bluetooth (Script `bt`)** | `bt on/off` | N/A | Nyalakan/matikan Bluetooth |
-| | `bt connect MAC` | N/A | Hubungkan ke perangkat Bluetooth |
-| | `bt trust MAC` | N/A | Tandai perangkat agar *auto connect* |
-| **Wi-Fi (Script `wifi`)** | `wifi on/off` | N/A | Aktif/nonaktif Wi-Fi |
-| | `wifi connect "SSID" [PASS]` | N/A | Sambung ke jaringan Wi-Fi |
-| | `wifi status` | N/A | Lihat status koneksi Wi-Fi |
-| **Perawatan Sistem** | `update` | `sudo pacman -Syu` | Update sistem Arch |
-| | `cleanpkg` | `sudo pacman -Scc` | Bersihkan *cache* paket |
-| | `btr` | N/A | Cek status baterai |
-| | `lsd` | N/A | List direktori detail (*alias* `ls -l` custom) |
-| **Database** | `mariastart` | N/A | Jalankan MySQL/phpMyAdmin |
-| | `mariastop` | N/A | Matikan MySQL/phpMyAdmin |
-| **Lain-lain** | `helpme` | N/A | Tampilkan catatan *keybind* ini |
-| | `livewall [file/--stop]` | N/A | Kelola Live Wallpaper |
+Kategori	Perintah (Alias/Script)	Fungsi	Lokasi
+VPN (WireGuard)	vpn on	Aktifkan ProtonVPN dengan konfigurasi /etc/wireguard/asyraf.conf, otomatis set route, MTU, keepalive, dan DNS global tanpa merusak NetworkManager	~/bin/vpn
+	vpn off	Nonaktifkan VPN, hapus route endpoint, serta pulihkan DNS ke 8.8.8.8 dan 1.1.1.1 atau backup sebelumnya	~/bin/vpn
+	vpn restart	Lakukan off lalu on ulang secara aman, cocok untuk recovery koneksi	~/bin/vpn
+	vpn status	Tampilkan status interface WireGuard, routing table, dan DNS aktif	~/bin/vpn
+	vpn test	Cek handshake, IP publik, DNS, dan koneksi HTTPS ke Reddit, Cloudflare, serta GitHub	~/bin/vpn
+Bluetooth (Script bt)	bt on/off	Nyalakan atau matikan service Bluetooth (systemctl --user start/stop bluetooth)	~/bin/bt
+	bt connect MAC	Hubungkan ke perangkat Bluetooth berdasarkan alamat MAC	~/bin/bt
+	bt trust MAC	Tandai perangkat agar otomatis terhubung saat Bluetooth aktif	~/bin/bt
+Wi-Fi (Script wifi)	wifi on/off	Aktifkan atau nonaktifkan radio Wi-Fi (nmcli radio wifi on/off)	~/bin/wifi
+	wifi connect "SSID" [PASS]	Hubungkan ke jaringan Wi-Fi tertentu (dengan atau tanpa password)	~/bin/wifi
+	wifi status	Tampilkan status perangkat dan koneksi aktif Wi-Fi	~/bin/wifi
+Perawatan Sistem	update	Jalankan pembaruan penuh sistem (sudo pacman -Syu)	~/.bashrc
+	cleanpkg	Hapus cache paket usang (sudo pacman -Scc)	~/.bashrc
+	btr	Tampilkan status baterai menggunakan upower atau acpi	~/bin/bt
+	lsd	Alias ls -l --color=auto dengan tampilan rapi dan detail	~/.bashrc
+Database	mariastart	Menyalakan layanan MariaDB/MySQL dan phpMyAdmin (jika ada)	~/bin/mariadb
+	mariastop	Mematikan layanan MariaDB/MySQL dan phpMyAdmin	~/bin/mariadb
+Lain-lain	helpme	Menampilkan daftar alias, script, dan keybind seperti tabel ini	~/bin/helpme
+	livewall [file/--stop]	Memutar atau menghentikan video wallpaper menggunakan xwinwrap + mpv	~/bin/livewall
 
 ---
 
