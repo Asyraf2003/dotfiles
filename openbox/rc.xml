@@ -274,6 +274,11 @@
     <action name="Execute"><command>spotify</command></action>
   </keybind>
   
+  <!-- Telegram -->
+  <keybind key="W-t">
+    <action name="Execute"><command>Telegram &amp;</command></action>
+  </keybind>
+
   <!-- Launch Cheese -->
   <keybind key="W-c">
     <action name="Execute"><command>cheese</command></action>

@@ -1,0 +1,6 @@
+
+[scrolling]
+history = 2000
+
+[general]
+live_config_reload = true

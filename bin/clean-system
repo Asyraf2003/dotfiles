@@ -1,0 +1,25 @@
+#!/bin/bash
+# 🔧 Arch System Cleaner by Asyraf
+
+echo "🧹 Cleaning system cache and logs..."
+
+# Pastikan semua data disimpan
+sync
+
+# Bersihkan pagecache, dentries, dan inode cache
+echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
+echo "✅ Memory cache cleared."
+
+# Bersihkan log lama (hanya simpan 3 hari terakhir)
+sudo journalctl --vacuum-time=3d
+echo "🗑️ System logs trimmed to 3 days."
+
+# Bersihkan cache aplikasi user
+rm -rf ~/.cache/*
+echo "✨ User cache removed."
+
+# Tampilkan hasil RAM
+echo
+free -h | grep -E "Mem|Swap"
+echo
+echo "🎯 Clean complete!"

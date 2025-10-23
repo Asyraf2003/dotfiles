@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+MENU_PATH="Advanced options for Arch Linux>Arch Linux, with Linux zen kernel"
+
+# pastikan grubenv ada
+if ! [ -f /boot/grub/grubenv ]; then
+  sudo grub-editenv /boot/grub/grubenv create
+fi
+
+# set next boot ke Zen (one-shot)
+sudo grub-reboot "$MENU_PATH"
+
+echo "[zen-reboot] Next entry set:"
+sudo grub-editenv /boot/grub/grubenv list || true
+
+# reboot sekarang
+exec sudo reboot
