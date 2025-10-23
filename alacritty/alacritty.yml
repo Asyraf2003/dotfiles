@@ -1,0 +1,3 @@
+scrolling:
+  history: 2000   # default 10k; 2k lebih hemat RAM
+live_config_reload: true
