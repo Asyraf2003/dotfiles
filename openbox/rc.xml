@@ -279,6 +279,11 @@
     <action name="Execute"><command>Telegram &amp;</command></action>
   </keybind>
 
+  <!-- WhatsApp -->
+  <keybind key="W-w">
+    <action name="Execute"><command>wasistlos</command></action>
+  </keybind>
+
   <!-- Launch Cheese -->
   <keybind key="W-c">
     <action name="Execute"><command>cheese</command></action>
