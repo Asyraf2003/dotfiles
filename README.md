@@ -74,7 +74,7 @@ systemctl reboot
 
 ## 📸 Screenshots
 
-[🎞️ View Live Wallpaper Demo (Google Drive)](https://drive.google.com/file/d/17_PRWUBV6H3aTjRuXP_wQ2_Z5sL74IBr/view?usp=sharing)
+[🎥 Watch Live Wallpaper Preview (5 s)](images/livewall_preview.mp4)
 > 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper running via `xwinwrap + mpv`.
 
 ![HTOP](images/htop.png)
