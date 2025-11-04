@@ -54,7 +54,6 @@ Keep everything **light, fast, and distraction-free**.
 
 ## ⚡ Quick Setup
 
-```bash
 # 1. Clone the repository
 git clone https://github.com/Asyraf2003/dotfiles.git ~/dotfiles
 
@@ -70,3 +69,30 @@ ln -s ~/dotfiles/bin ~/bin
 
 # 4. Reboot
 systemctl reboot
+
+---
+
+## 📸 Screenshots
+
+![Desktop](images/desktop.png)
+> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper.
+
+![HTOP](images/htop.png)
+> 💻 **System Resource:** Idle system using ~300 MB RAM — clean, efficient, and blazing fast.
+
+![Helpme](images/helpme.png)
+> ⌨️ **Keybind Overview:** Every system function is bound to a single key — total keyboard control.
+
+![Live Wallpaper](images/livewall.gif)
+> 🌈 **Live Wallpaper (GIF Preview):** Running via `xwinwrap + mpv` — a touch of motion in a pure terminal workspace.
+
+---
+
+## 💡 Notes
+
+This setup is built to be:
+- Blazing fast ⚡  
+- Keyboard-first 🧠  
+- Fully scriptable 🔧  
+
+Ideal for developers who live inside the terminal.
