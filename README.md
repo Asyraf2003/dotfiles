@@ -74,11 +74,8 @@ systemctl reboot
 
 ## 📸 Screenshots
 
-![Live Wallpaper](images/livewall.gif)
-> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper. Running via `xwinwrap + mpv` — a touch of motion in a pure terminal workspace.
-
-![Desktop](images/desktop.png)
-> 🖼️ **Desktop (still):** Static preview of the clean workspace.
+[🎞️ View Live Wallpaper Demo (Google Drive)](https://drive.google.com/file/d/17_PRWUBV6H3aTjRuXP_wQ2_Z5sL74IBr/view?usp=sharing)
+> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper running via `xwinwrap + mpv`.
 
 ![HTOP](images/htop.png)
 > 💻 **System Resource:** Idle system using ~300 MB RAM — clean, efficient, and blazing fast.
