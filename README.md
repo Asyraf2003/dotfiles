@@ -1,143 +1,72 @@
-# 💻 Dotfiles: Asyraf Dev-Ops Minimalist Setup
+# 💻 Asyraf’s Minimalist Dev-Ops Dotfiles
 
-Selamat datang di repositori dotfiles saya! Ini adalah blueprint untuk setup Arch Linux minimalis saya, dirancang untuk **kecepatan, kontrol keyboard penuh, dan efisiensi tingkat programmer**.
+Welcome to my personal **Arch Linux dotfiles** — a fast, keyboard-driven, and fully minimalist setup built for developers who value control and speed.
 
-Jika Anda suka terminal, *keybind*, dan menghindari *bloatware*, ini adalah *setup* yang tepat.
-
-## 🚀 Filosofi Setup
-
-Setup ini bertujuan untuk menciptakan lingkungan kerja yang:
-
-* **Keyboard-Centric:** Menggunakan *keybind* Openbox dan *script* `~/bin` untuk menjalankan semua fungsi sistem, menghindari penggunaan mouse.
-* **Zero-Bloat:** Hanya menginstal program yang mutlak dibutuhkan.
-* **Instan:** Waktu *loading* aplikasi (terutama Alacritty) harus mendekati nol.
-
-## ✨ Komponen Inti
-
-| Komponen | Tujuan | Config File/Location |
-| :--- | :--- | :--- |
-| **Window Manager** | Openbox (Ringan dan Konfigurasi Penuh) | `openbox/rc.xml` |
-| **Terminal Emulator** | Alacritty (Akselerasi GPU, Ultra-Cepat) | `alacritty/` |
-| **Shell** | Bash (dengan *aliases* dan *function* kustom) | `.bashrc` |
-| **Keybind Scripts** | Skrip utilitas harian (*reboot*, *vpn*, dll.) | `bin/` |
-
-## ⌨️ Keybinds & Aliases
-
-Setup ini sangat bergantung pada pintasan keyboard (keybind) Openbox dan alias Bash kustom Anda (di `~/.bashrc` dan *script* `~/bin`).
-
-| Kategori | Keybind / Alias | Perintah | Fungsi |
-| :--- | :--- | :--- | :--- |
-| **Aplikasi Utama** | `W + Return` | `alacritty` | Buka Terminal |
-| | `W + B` | `brave-browser` | Buka Brave Browser |
-| | `W + V` | `code` | Buka VS Code |
-| | `W + S` | `spotify` | Buka Spotify |
-| | `W + C` | `cheese` | Buka Kamera |
-| | `W + O` | `obs` | Buka OBS Studio |
-| | `W + F` | `thunar` | Buka File Manager |
-| **Sistem** | `W + R` | `reboot` | Restart |
-| | `W + Q` | `systemctl poweroff` | Matikan Komputer |
-| | `W + D` | `toggle_show_desktop` | Tampilkan Desktop |
-| | `A + F4` | `kill` | Tutup Jendela Aktif |
-| **Navigasi Jendela** | `A + Space` | `ShowMenu` | Buka Menu Jendela |
-| | `A + Tab` / `A + S + Tab` | `CycleWindows` | Pindah Antar Jendela |
-| | `W + Arrow` | `ResizeToHalfScreen` | Geser Jendela Setengah Layar |
-| | `W + S + Arrow` | `MoveToCorner` | Geser Jendela ke Pojok |
-| **Desktop** | `C + A + Arrow` | `DesktopSwitch` | Pindah Antar Desktop |
-| | `S + A + Arrow` | `SendToDesktop` | Kirim Jendela ke Desktop Lain |
-| **Screenshot** | `Print` | `screenshot-full` | Screenshot Penuh |
-| | `A + Print` | `screenshot-window` | Screenshot Jendela Aktif |
-| | `S + Print` | `screenshot-area` | Screenshot Area Tertentu |
-
-### 🔨 Skrip Kustom & Aliases (Scripts in `~/bin/` & `.bashrc`)
-
-| Kategori                    | Perintah (Alias/Script)      | Fungsi                                                                                                                                              | Lokasi           |
-| :-------------------------- | :--------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------- |
-| **VPN (WireGuard)**         | `vpn on`                     | Aktifkan ProtonVPN dengan konfigurasi `/etc/wireguard/asyraf.conf`, otomatis set route, MTU, keepalive, dan DNS global tanpa merusak NetworkManager | `~/bin/vpn`      |
-|                             | `vpn off`                    | Nonaktifkan VPN, hapus route endpoint, serta pulihkan DNS ke `8.8.8.8` dan `1.1.1.1` atau backup sebelumnya                                         | `~/bin/vpn`      |
-|                             | `vpn restart`                | Lakukan `off` lalu `on` ulang secara aman, cocok untuk recovery koneksi                                                                             | `~/bin/vpn`      |
-|                             | `vpn status`                 | Tampilkan status interface WireGuard, routing table, dan DNS aktif                                                                                  | `~/bin/vpn`      |
-|                             | `vpn test`                   | Cek handshake, IP publik, DNS, dan koneksi HTTPS ke Reddit, Cloudflare, serta GitHub                                                                | `~/bin/vpn`      |
-| **Bluetooth (Script `bt`)** | `bt on/off`                  | Nyalakan atau matikan service Bluetooth (`systemctl --user start/stop bluetooth`)                                                                   | `~/bin/bt`       |
-|                             | `bt connect MAC`             | Hubungkan ke perangkat Bluetooth berdasarkan alamat MAC                                                                                             | `~/bin/bt`       |
-|                             | `bt trust MAC`               | Tandai perangkat agar otomatis terhubung saat Bluetooth aktif                                                                                       | `~/bin/bt`       |
-| **Wi-Fi (Script `wifi`)**   | `wifi on/off`                | Aktifkan atau nonaktifkan radio Wi-Fi (`nmcli radio wifi on/off`)                                                                                   | `~/bin/wifi`     |
-|                             | `wifi connect "SSID" [PASS]` | Hubungkan ke jaringan Wi-Fi tertentu (dengan atau tanpa password)                                                                                   | `~/bin/wifi`     |
-|                             | `wifi status`                | Tampilkan status perangkat dan koneksi aktif Wi-Fi                                                                                                  | `~/bin/wifi`     |
-| **Perawatan Sistem**        | `update`                     | Jalankan pembaruan penuh sistem (`sudo pacman -Syu`)                                                                                                | `~/.bashrc`      |
-|                             | `cleanpkg`                   | Hapus cache paket usang (`sudo pacman -Scc`)                                                                                                        | `~/.bashrc`      |
-|                             | `btr`                        | Tampilkan status baterai menggunakan `upower` atau `acpi`                                                                                           | `~/bin/bt`       |
-|                             | `lsd`                        | Alias `ls -l --color=auto` dengan tampilan rapi dan detail                                                                                          | `~/.bashrc`      |
-| **Database**                | `mariastart`                 | Menyalakan layanan MariaDB/MySQL dan phpMyAdmin (jika ada)                                                                                          | `~/bin/mariadb`  |
-|                             | `mariastop`                  | Mematikan layanan MariaDB/MySQL dan phpMyAdmin                                                                                                      | `~/bin/mariadb`  |
-| **Lain-lain**               | `helpme`                     | Menampilkan daftar alias, script, dan keybind seperti tabel ini                                                                                     | `~/bin/helpme`   |
-|                             | `livewall [file/--stop]`     | Memutar atau menghentikan video wallpaper menggunakan `xwinwrap` + `mpv`                                                                            | `~/bin/livewall` |
-
+If you love the terminal, shortcuts, and zero bloat, this setup is for you.
 
 ---
 
-## 🌐 Network Info
+## 🚀 Philosophy
 
-Informasi jaringan penting untuk setup ini (biasanya dikonfigurasi di *script* `vpn-on/off`):
+Keep everything **light, fast, and distraction-free**.
 
-* **Interface Wi-Fi:** `wlp2s0`
-* **Gateway:** `192.168.8.1`
-* **DNS Default:** `8.8.8.8, 1.1.1.1`
-* **IPv6:** `disabled`
-  
+- **Keyboard-centric:** 100% controlled via Openbox keybinds and scripts in `~/bin`
+- **Zero-bloat:** only essential packages installed
+- **Instant:** every app loads in milliseconds
+
 ---
 
-## 🛠️ Proses Instalasi Cepat (Full Automation Mode)
+## ⚙️ Core Components
 
-Setelah instalasi Arch dasar selesai, ikuti langkah-langkah ini:
+| Component | Description |
+|------------|--------------|
+| **WM:** Openbox | Lightweight and fully customizable window manager |
+| **Terminal:** Alacritty | GPU-accelerated and ultra-fast |
+| **Shell:** Bash | Clean aliases, functions, and colorized prompt |
+| **Scripts:** `~/bin` | Custom CLI tools (Wi-Fi, VPN, system, etc.) |
 
-### 1. Kloning dan Instal Paket Dasar
+---
 
-Pastikan Anda memiliki `git` dan AUR Helper (misalnya `yay` atau `paru`) terinstal.
+## ⌨️ Key Features
 
-#### Kloning Repositori
+- Fast keyboard navigation  
+- Instant app launch with Openbox keybinds  
+- Clean dark theme  
+- Fully terminal-based workflow  
+- Custom scripts for Wi-Fi, VPN, Bluetooth, and MariaDB  
+- Auto-symlink installer for quick setup  
 
-# Kloning dotfiles ke home directory
+---
+
+## 🧰 Custom Commands
+
+| Command | Description |
+|----------|--------------|
+| `vpn on/off/status` | Manage ProtonVPN (WireGuard) |
+| `wifi on/off/connect` | Control Wi-Fi via `nmcli` |
+| `bt on/off/connect` | Bluetooth management |
+| `mariastart/stop` | Start or stop MariaDB services |
+| `update` | System update (`sudo pacman -Syu`) |
+| `cleanpkg` | Clean package cache |
+| `helpme` | Display all aliases & keybinds |
+
+---
+
+## ⚡ Quick Setup
 
 ```bash
-git clone [https://github.com/Asyraf2003/dotfiles.git](https://github.com/Asyraf2003/dotfiles.git) ~/dotfiles
-```
-Instalasi Paket Resmi (Pacman)
-```Bash
+# 1. Clone the repository
+git clone https://github.com/Asyraf2003/dotfiles.git ~/dotfiles
+
+# 2. Install packages
 sudo pacman -S --needed - < ~/dotfiles/pkglist_pacman.txt
-```
-Instalasi Paket AUR (yay/paru)
-
-# Jika ada paket dari AUR, jalankan ini
-```Bash
 yay -S --needed - < ~/dotfiles/pkglist_aur.txt
-```
-2. Membuat Symlink (Mengaktifkan Konfigurasi)
-Langkah ini membuat tautan simbolik dari file konfigurasi Anda di folder ```~/dotfiles kembali ke lokasi aslinya (~/.config/).```
 
-```Bash
-
-cd ~
-```
-Creating Symlinks...
-
-# Configs Utama
-```Bash
+# 3. Create symlinks
 ln -s ~/dotfiles/.bashrc ~/.bashrc
 ln -s ~/dotfiles/openbox ~/.config/openbox
 ln -s ~/dotfiles/alacritty ~/.config/alacritty
-ln -s ~/dotfiles/htop ~/.config/htop
-ln -s ~/dotfiles/yay ~/.config/yay
 ln -s ~/dotfiles/bin ~/bin
-```
 
-Symlink Complete Yeaayyy!"
-
-3. Selesai dan Reboot
-Setelah semua symlink dibuat, logout dan login kembali, atau reboot sistem Anda agar konfigurasi Openbox, Bash, dan Alacritty yang baru dapat dimuat.
-
-```Bash
-
-# Perintah terakhir
+# 4. Reboot
 systemctl reboot
-```
-
