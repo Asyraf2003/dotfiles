@@ -3,11 +3,11 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-bt — helper CLI (bluetoothctl)
+bt — helper CLI (systemd + bluetoothctl)
 
 Perintah:
-  bt on                        # power on
-  bt off                       # power off
+  bt on                        # start service + power on
+  bt off                       # power off + stop service
   bt status                    # status adapter & perangkat
   bt scan [sec]                # scan (default 10 detik)
   bt paired                    # daftar paired devices
@@ -21,64 +21,102 @@ Perintah:
 EOF
 }
 
+# ---------- helpers ----------
 runctl() {
   bluetoothctl --timeout 20 "$@"
 }
 
+is_mac() {
+  [[ "${1:-}" =~ ^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]
+}
+
+need_mac() {
+  local mac="${1:-}"
+  if ! is_mac "$mac"; then
+    echo "Butuh MAC yang valid. contoh: AA:BB:CC:DD:EE:FF" >&2
+    exit 1
+  fi
+}
+
+# systemd helpers (pakai system unit, bukan --user)
+svc_active() {
+  systemctl is-active --quiet bluetooth.service
+}
+
+svc_start() {
+  # Unblock rfkill kalau ada
+  command -v rfkill >/dev/null 2>&1 && rfkill unblock bluetooth || true
+
+  if [[ $EUID -eq 0 ]]; then
+    systemctl start bluetooth.service
+  else
+    sudo systemctl start bluetooth.service
+  fi
+}
+
+svc_stop() {
+  if [[ $EUID -eq 0 ]]; then
+    systemctl stop bluetooth.service
+  else
+    sudo systemctl stop bluetooth.service
+  fi
+}
+
+# ---------- commands ----------
 cmd="${1:-}"; shift || true
 case "${cmd}" in
-  on)  runctl power on ;;
-  off) runctl power off ;;
+  on)
+    # start service (tanpa enable)
+    if ! svc_active; then
+      svc_start
+    fi
+    # power on adapter
+    runctl power on
+    ;;
+
+  off)
+    # power off dulu biar perangkat rapi
+    runctl power off || true
+    # stop service (manual mode)
+    if svc_active; then
+      svc_stop
+    fi
+    ;;
+
   status)
+    echo "== Service =="
+    systemctl --no-pager --full status bluetooth.service || true
+    echo
     echo "== Controller =="
-    runctl show
+    runctl show || true
     echo
     echo "== Paired devices =="
     runctl paired-devices || true
     ;;
+
   scan)
     dur="${1:-10}"
-    runctl scan on >/dev/null 2>&1 &
-    pid=$!
+    if [[ ! "$dur" =~ ^[0-9]+$ ]]; then dur=10; fi
+    if (( dur < 1 || dur > 60 )); then dur=10; fi
+
     echo "Scanning ${dur}s…"
-    sleep "${dur}"
+    runctl scan on || true
+    sleep "$dur"
     runctl scan off || true
-    [[ -n "${pid:-}" ]] && kill "$pid" >/dev/null 2>&1 || true
     runctl devices || true
     ;;
-  paired)
-    runctl paired-devices || true
-    ;;
-  devices)
-    runctl devices || true
-    ;;
-  connect)
-    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC. contoh: bt connect AA:BB:CC:DD:EE:FF"; exit 1; }
-    runctl connect "${mac}"
-    ;;
-  disconnect)
-    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
-    runctl disconnect "${mac}"
-    ;;
-  pair)
-    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
-    runctl pair "${mac}"
-    ;;
-  trust)
-    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
-    runctl trust "${mac}"
-    ;;
-  remove)
-    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
-    runctl remove "${mac}"
-    ;;
-  info)
-    mac="${1:-}"; [[ -z "${mac}" ]] && { echo "Butuh MAC."; exit 1; }
-    runctl info "${mac}"
-    ;;
-  ""|-h|--help|help)
-    usage
-    ;;
+
+  paired)   runctl paired-devices || true ;;
+  devices)  runctl devices || true ;;
+
+  connect)     need_mac "${1:-}"; runctl connect     "$1" ;;
+  disconnect)  need_mac "${1:-}"; runctl disconnect  "$1" ;;
+  pair)        need_mac "${1:-}"; runctl pair        "$1" ;;
+  trust)       need_mac "${1:-}"; runctl trust       "$1" ;;
+  remove)      need_mac "${1:-}"; runctl remove      "$1" ;;
+  info)        need_mac "${1:-}"; runctl info        "$1" ;;
+
+  ""|-h|--help|help) usage ;;
   *)
     echo "Perintah tidak dikenal: ${cmd}"; echo; usage; exit 1;;
 esac

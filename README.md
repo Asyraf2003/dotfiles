@@ -74,17 +74,17 @@ systemctl reboot
 
 ## 📸 Screenshots
 
+![Live Wallpaper](images/livewall.gif)
+> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper. Running via `xwinwrap + mpv` — a touch of motion in a pure terminal workspace.
+
 ![Desktop](images/desktop.png)
-> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper.
+> 🖼️ **Desktop (still):** Static preview of the clean workspace.
 
 ![HTOP](images/htop.png)
 > 💻 **System Resource:** Idle system using ~300 MB RAM — clean, efficient, and blazing fast.
 
 ![Helpme](images/helpme.png)
 > ⌨️ **Keybind Overview:** Every system function is bound to a single key — total keyboard control.
-
-![Live Wallpaper](images/livewall.gif)
-> 🌈 **Live Wallpaper (GIF Preview):** Running via `xwinwrap + mpv` — a touch of motion in a pure terminal workspace.
 
 ---
 

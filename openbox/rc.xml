@@ -309,7 +309,12 @@
     <action name="Execute"><command>systemctl poweroff</command></action>
   </keybind>
   
-    <!-- Move window half screen -->
+  <!-- Suspend -->
+  <keybind key="W-S-q">
+    <action name="Execute"><command>systemctl suspend</command></action>
+  </keybind>  
+
+  <!-- Move window half screen -->
   <keybind key="W-Left">
     <action name="Execute">
       <command>wmctrl -r :ACTIVE: -e 0,0,0,960,1080</command>
