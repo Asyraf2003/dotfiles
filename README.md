@@ -76,16 +76,9 @@ systemctl reboot
 
 <h3>🎥 Live Wallpaper Preview (5 s)</h3>
 
-<video src="images/livewall_preview.mp4"
-       width="720"
-       autoplay
-       loop
-       muted
-       playsinline
-       controls
-       style="border-radius:12px; box-shadow:0 0 12px rgba(0,0,0,0.5);">
-  Sorry, your browser doesn't support embedded videos.
-</video>
+<a href="https://github.com/Asyraf2003/dotfiles/blob/main/images/livewall_preview.mp4">
+  <img src="https://github.com/Asyraf2003/dotfiles/assets/preview_video_thumbnail.png" width="720" alt="Live Wallpaper Preview (5s)">
+</a>
 
 <p><em>🖼️ Desktop:</em> Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper running via <code>xwinwrap + mpv</code>.</p>
 
