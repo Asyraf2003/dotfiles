@@ -74,15 +74,9 @@ systemctl reboot
 
 ## 📸 Screenshots
 
-<h3>🎥 Live Wallpaper Preview (5 s)</h3>
+🎥 [Watch Live Wallpaper Preview (5 s)](https://github.com/Asyraf2003/dotfiles/raw/main/images/livewall_preview.mp4)
 
-<video width="720" autoplay loop muted playsinline controls
-       style="border-radius:12px; box-shadow:0 0 12px rgba(0,0,0,0.5);">
-  <source src="https://github.com/Asyraf2003/dotfiles/raw/main/images/livewall_preview.mp4" type="video/mp4">
-  Sorry, your browser doesn't support embedded videos.
-</video>
-
-<p><em>🖼️ Desktop:</em> Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper running via <code>xwinwrap + mpv</code>.</p>
+> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper running via `xwinwrap + mpv`.
 
 ![HTOP](images/htop.png)
 > 💻 **System Resource:** Idle system using ~300 MB RAM — clean, efficient, and blazing fast.
