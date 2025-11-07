@@ -3,12 +3,10 @@
 # Usage: vpn on|off|restart|test|status|help
 set -Eeuo pipefail
 
-### ====== KONFIG SESUAI PUNYA ASYRAF ======
-EP="185.177.125.13"            # Endpoint IP dari [Peer]
-GW="192.168.8.1"               # Gateway Wi-Fi kamu
-DEV="wlp2s0"                   # Interface Wi-Fi kamu
-IFACE="asyraf"                 # Nama interface WG (nama file conf)
-CONF="/etc/wireguard/asyraf.conf"
+### ====== KONFIG ASYRAF ======
+EP="185.177.125.13"                 # Endpoint IP/hostname [Peer]
+IFACE="asyraf"                      # Nama interface WG
+CONF="/etc/wireguard/${IFACE}.conf" # Path config standar
 PEER_PUB="jJilN4ZNv7G6Cs64Rv422Ar05/qWNw0l4cXQ8n/O5Vg="
 MTU="1320"
 DNS1="8.8.8.8"
@@ -26,30 +24,103 @@ ensure_dns_global() {
 }
 sed_no_dns() { sudo sed -i '/^[[:space:]]*DNS[[:space:]]*=/d' "$CONF" 2>/dev/null || true; }
 
+# Cari file config (pakai sudo biar tidak mentok permission), auto-symlink kalau namanya beda
+resolve_conf() {
+  local want="/etc/wireguard/${IFACE}.conf"
+  local candidates=(
+    "/etc/wireguard/${IFACE}.conf"
+    "/etc/wireguard/${IFACE}-arch.conf"
+    "/etc/wireguard/protonvpn.conf"
+  )
+
+  sudo install -d -m 755 /etc/wireguard >/dev/null 2>&1 || true
+
+  for f in "${candidates[@]}"; do
+    if sudo test -f "$f"; then
+      sudo chown root:root "$f" 2>/dev/null || true
+      sudo chmod 600 "$f" 2>/dev/null || true
+      if [ "$f" != "$want" ]; then
+        sudo ln -sf "$f" "$want"
+      fi
+      CONF="$want"
+      return 0
+    fi
+  done
+
+  echo "[!] Config ${want} tidak ditemukan. Isi /etc/wireguard:"
+  sudo ls -l /etc/wireguard/ 2>/dev/null || echo "(folder tidak bisa diakses)"
+  return 1
+}
+
+# Resolve EP ke IPv4 (boleh IP langsung atau hostname)
+resolve_ep_ip() {
+  if [[ "$EP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    EP_IP="$EP"
+  else
+    EP_IP="$(getent ahostsv4 "$EP" | awk 'NR==1{print $1}')"
+  fi
+  [ -n "${EP_IP:-}" ]
+}
+
 ### ====== ACTIONS ======
 vpn_on() {
   echo "[+] Starting ProtonVPN (WireGuard)..."
 
-  # Idempotent: kalau sudah aktif, cuma refresh
+  # Pastikan config ada (auto-symlink jika namanya beda)
+  resolve_conf || exit 1
+
+  # Idempotent: kalau sudah aktif, refresh keepalive + DNS + route endpoint
   if is_up; then
-    echo "[i] $IFACE sudah aktif; refresh keepalive + DNS."
+    echo "[i] $IFACE sudah aktif; refresh keepalive + DNS + route."
     sudo wg set "$IFACE" peer "$PEER_PUB" persistent-keepalive 25 || true
+    read DEF_GW DEF_DEV < <(ip -4 route show default | awk '{print $3, $5; exit}')
+    if [[ -n "${DEF_GW:-}" && -n "${DEF_DEV:-}" ]] && resolve_ep_ip; then
+      sudo ip route replace "$EP_IP" via "$DEF_GW" dev "$DEF_DEV"
+    fi
     ensure_dns_global
-    exit 0
+    echo "[+] VPN tetap aktif."
+    return 0
   fi
 
-  # Backup DNS sekali
-  [ -f /etc/resolv.conf ] && sudo cp -n /etc/resolv.conf /etc/resolv.conf.backup 2>/dev/null || true
+  have wg-quick || { echo "[!] 'wg-quick' tidak ada di PATH."; exit 1; }
 
-  # Pastikan WG tidak utak-atik DNS
+  # Matikan IPv6 saat ON agar tidak leak
+  sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null
+  sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null
+
+  # Backup DNS sekali & pastikan config tidak punya DNS=
+  [ -f /etc/resolv.conf ] && sudo cp -n /etc/resolv.conf /etc/resolv.conf.backup 2>/dev/null || true
   sed_no_dns
 
-  # Static route ke endpoint agar 'wg-quick up' tidak unreachable
-  sudo ip route replace "$EP" via "$GW" dev "$DEV"
-  echo "[+] Static route -> $EP via $GW dev $DEV"
+  # Default gateway & device aktif
+  read DEF_GW DEF_DEV < <(ip -4 route show default | awk '{print $3, $5; exit}')
+  if [ -z "${DEF_GW:-}" ] || [ -z "${DEF_DEV:-}" ]; then
+    echo "[!] Tidak menemukan default route v4. Pastikan Wi-Fi/ethernet tersambung."
+    exit 1
+  fi
+  ip link show "$DEF_DEV" >/dev/null 2>&1 || { echo "[!] Interface $DEF_DEV tidak ada."; exit 1; }
 
-  # Naikkan WireGuard
-  sudo wg-quick up "$IFACE"
+  # Endpoint IPv4
+  resolve_ep_ip || { echo "[!] Gagal resolve EP '$EP' ke IPv4."; exit 1; }
+
+  # Static route agar up tidak nyasar
+  sudo ip route replace "$EP_IP" via "$DEF_GW" dev "$DEF_DEV"
+  echo "[+] Static route -> $EP_IP via $DEF_GW dev $DEF_DEV"
+
+  # Jika config masih memuat ::/0 sementara IPv6 OFF, buat config sementara tanpa ::/0
+  IPV6_DISABLED="$(sysctl -n net.ipv6.conf.all.disable_ipv6 2>/dev/null || echo 0)"
+  EFFECTIVE_CONF="$CONF"
+  if [[ "$IPV6_DISABLED" == "1" ]]; then
+    EFFECTIVE_CONF="/run/wireguard/${IFACE}.conf"
+    sudo mkdir -p /run/wireguard
+    sudo sh -c "sed -E 's/, *::\/0//; s/::\/0(, *)?//;' '$CONF' > '$EFFECTIVE_CONF'"
+    sudo chown root:root "$EFFECTIVE_CONF" 2>/dev/null || true
+    sudo chmod 600 "$EFFECTIVE_CONF" 2>/dev/null || true
+    echo "[i] IPv6 sistem OFF; pakai config sementara tanpa ::/0."
+  fi
+
+  # Naikkan WG: pakai PATH file config, bukan hanya nama interface
+  sudo wg-quick up "$EFFECTIVE_CONF"
 
   # Set MTU + keepalive
   sudo ip link set mtu "$MTU" dev "$IFACE" || true
@@ -57,7 +128,6 @@ vpn_on() {
 
   # Paksa DNS global setiap connect
   ensure_dns_global
-
   echo "[+] VPN aktif tanpa mengubah DNS lokal."
 }
 
@@ -67,15 +137,23 @@ vpn_off() {
     sudo wg-quick down "$IFACE" || true
   else
     echo "[i] $IFACE sudah non-aktif; skip wg-quick down."
+    sudo ip link del dev "$IFACE" 2>/dev/null || true
   fi
-  # Bersihkan route endpoint
-  sudo ip route del "$EP" 2>/dev/null || true
+
+  # Hapus static route ke endpoint
+  resolve_ep_ip && sudo ip route del "$EP_IP" 2>/dev/null || true
+
   # Pulihkan DNS
   if [ -f /etc/resolv.conf.backup ]; then
     sudo mv /etc/resolv.conf.backup /etc/resolv.conf
   else
     ensure_dns_global
   fi
+
+  # Pulihkan IPv6
+  sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null
+  sudo sysctl -w net.ipv6.conf.default.disable_ipv6=0 >/dev/null
+
   echo "[+] VPN dimatikan & DNS aman."
 }
 
@@ -98,14 +176,17 @@ vpn_status() {
 
 vpn_test() {
   echo "=== TEST ==="
-  echo -n "[i] Public IP: "; curl -s --max-time 5 ifconfig.me || echo "N/A"
+  if ! is_up; then
+    echo "[!] Interface $IFACE sedang OFF. Jalankan 'vpn on' dulu."
+    return 1
+  fi
+
+  echo -n "[i] Public IP (v4): "; curl -4 -s --max-time 5 ifconfig.me || echo "N/A"
+  echo
+  echo -n "[i] Public IP (v6): "; curl -6 -s --max-time 5 ifconfig.me || echo "N/A"
   echo
   echo -n "[i] WG handshake: "
-  if is_up; then
-    sudo wg | awk '/latest handshake/{print $3,$4,$5; exit}'
-  else
-    echo "interface down"
-  fi
+  sudo wg | awk '/latest handshake/{print $3,$4,$5; exit}'
   echo "[i] DNS reddit.com:"
   if have dig; then
     dig +short reddit.com || true
@@ -113,7 +194,6 @@ vpn_test() {
     getent hosts reddit.com || true
   fi
   echo "[i] HTTPS checks:"
-  curl -Is --max-time 10 https://www.reddit.com | head -n1 || echo "reddit: fail"
   curl -Is --max-time 10 https://www.cloudflare.com | head -n1 || echo "cloudflare: fail"
   curl -Is --max-time 10 https://github.com | head -n1 || echo "github: fail"
 }
@@ -122,8 +202,8 @@ usage() {
   cat <<EOF
 Usage: vpn {on|off|restart|test|status|help}
 
-  on       : aktifkan VPN (idempotent, auto MTU=$MTU, DNS $DNS1/$DNS2)
-  off      : matikan VPN & pulihkan DNS
+  on       : aktifkan VPN (dinamis gateway, cegah IPv6 leak)
+  off      : matikan VPN & pulihkan DNS/IPv6
   restart  : off lalu on
   status   : ringkasan WG, routing, DNS
   test     : cek IP publik, handshake, DNS, dan HTTPS
