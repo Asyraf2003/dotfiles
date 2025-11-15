@@ -273,16 +273,6 @@
   <keybind key="W-s">
     <action name="Execute"><command>spotify</command></action>
   </keybind>
-  
-  <!-- Telegram -->
-  <keybind key="W-t">
-    <action name="Execute"><command>Telegram &amp;</command></action>
-  </keybind>
-
-  <!-- WhatsApp -->
-  <keybind key="W-w">
-    <action name="Execute"><command>wasistlos</command></action>
-  </keybind>
 
   <!-- Launch Cheese -->
   <keybind key="W-c">

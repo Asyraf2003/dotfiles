@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
+action="${1:-start}"
+shift || true
 set -e
 
-case "$1" in
+case "$action" in
   start)
     echo "Starting MariaDB (Database)..."
     sudo systemctl start mariadb.service
