@@ -66,8 +66,6 @@ curl ifconfig.me  : Lihat IP publik
 sudo wg           : Cek status VPN aktif
 
 ====== Wallpaper ======
-livewall ~/Images/Live-wallpaper/nama-wallpaper.mp4 : Ganti Live Wallpaper
-livewall --stop : Matikan Live Wallpaper
 
 ====== Maria Sql ======
 mariastart : Jalankan mysql dan phpmyadmin 
