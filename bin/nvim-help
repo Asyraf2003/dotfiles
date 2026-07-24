@@ -1,0 +1,1312 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'MANUAL'
+============================================================
+ASYRAF NEOVIM FULL MANUAL
+============================================================
+
+Command buka manual ini:
+
+  nvim help
+
+Manual ini dibuat untuk setup Neovim terbaru kamu:
+- VSCode-like keymap
+- Telescope search
+- NvimTree file explorer
+- Bufferline tab-like buffer
+- Lualine statusline
+- ToggleTerm terminal
+- Treesitter syntax
+- nvim-cmp autocomplete
+- LSP untuk PHP/Laravel, Go, Lua, JS/TS, HTML, CSS, JSON
+- Formatter Conform
+- Multi-cursor vim-visual-multi
+- Comment.nvim
+- nvim-autopairs
+- gitsigns
+- tmux
+- Codex CLI
+
+============================================================
+0. KONSEP PALING PENTING
+============================================================
+
+Neovim bukan seperti VSCode biasa.
+Neovim punya MODE.
+
+------------------------------------------------------------
+NORMAL MODE
+------------------------------------------------------------
+
+Ini mode utama.
+Dipakai untuk:
+- navigasi
+- copy
+- paste
+- delete
+- search
+- replace
+- pindah file
+- command editor
+
+Balik ke Normal Mode:
+
+  Esc
+
+------------------------------------------------------------
+INSERT MODE
+------------------------------------------------------------
+
+Ini mode mengetik.
+
+Masuk Insert Mode:
+
+  i    ketik sebelum cursor
+  a    ketik setelah cursor
+  o    buat baris baru di bawah lalu ketik
+  O    buat baris baru di atas lalu ketik
+
+Keluar Insert Mode:
+
+  Esc
+
+------------------------------------------------------------
+VISUAL MODE
+------------------------------------------------------------
+
+Ini mode select teks.
+
+  v        select per karakter
+  V        select per baris
+  Ctrl+q   visual block / select kolom
+
+Catatan:
+Ctrl+v di config kamu dipakai untuk paste seperti VSCode.
+Karena itu visual block dipindah ke Ctrl+q.
+
+------------------------------------------------------------
+RULE BESAR
+------------------------------------------------------------
+
+Kalau mau mengetik huruf manual:
+  pakai i / a / o / O
+
+Kalau mau copy, paste, search, replace, delete, pindah:
+  tetap di Normal Mode
+
+============================================================
+1. LEADER KEY
+============================================================
+
+Leader kamu adalah:
+
+  Space
+
+Kalau tertulis:
+
+  Space fg
+
+Artinya:
+- tekan Space
+- lalu tekan f
+- lalu tekan g
+
+Bukan ditekan bersamaan.
+
+============================================================
+2. FILE EXPLORER / SIDEBAR
+============================================================
+
+Plugin:
+
+  nvim-tree.lua
+
+Mirip Explorer di VSCode.
+
+Buka/tutup file explorer:
+
+  Ctrl+e
+
+Catatan:
+Dulu config kamu pakai Ctrl+n.
+Config terbaru pakai Ctrl+e supaya lebih mirip Explorer.
+
+Di dalam NvimTree:
+
+  Enter    buka file/folder
+  a        buat file/folder
+  r        rename
+  d        delete
+  x        cut / move
+  c        copy
+  p        paste
+  q        tutup tree
+
+Cara buat file:
+
+  tekan a
+  ketik nama file, contoh:
+  app/Http/Controllers/TestController.php
+
+Cara buat folder:
+
+  tekan a
+  ketik nama folder dengan slash akhir:
+  app/Services/
+
+Cara move file:
+
+  arahkan cursor ke file
+  tekan x
+  arahkan ke folder tujuan
+  tekan p
+
+============================================================
+3. SEARCH FILE DAN SEARCH TEXT
+============================================================
+
+Plugin:
+
+  telescope.nvim
+
+Dependency system:
+
+  ripgrep
+  fd
+
+------------------------------------------------------------
+Cari file seperti VSCode Ctrl+P
+------------------------------------------------------------
+
+  Ctrl+p
+
+Atau versi Vim-style:
+
+  Space ff
+
+------------------------------------------------------------
+Cari teks di file aktif seperti VSCode Ctrl+F
+------------------------------------------------------------
+
+  Ctrl+f
+
+Ini membuka fuzzy search untuk buffer/file yang sedang aktif.
+
+Cara bawaan Vim juga bisa:
+
+  /kata
+
+Lalu:
+
+  n    next match
+  N    previous match
+
+------------------------------------------------------------
+Cari teks seluruh project seperti VSCode Ctrl+Shift+F
+------------------------------------------------------------
+
+  Ctrl+Shift+f
+
+Kalau terminal kamu tidak membaca Ctrl+Shift+f, pakai:
+
+  Space fg
+
+Ini lebih pasti jalan di terminal.
+
+------------------------------------------------------------
+Cari kata di bawah cursor dalam seluruh project
+------------------------------------------------------------
+
+  Space fw
+
+Contoh:
+cursor ada di kata User.
+Tekan Space fw.
+Telescope akan cari User di seluruh project.
+
+============================================================
+4. COPY / PASTE / CUT
+============================================================
+
+Clipboard kamu sudah pakai:
+
+  unnamedplus
+
+Dan di Openbox/X11 kamu sudah install:
+
+  xclip
+
+Artinya:
+- copy dari browser/Word bisa paste ke Neovim
+- copy dari Neovim bisa paste ke browser/Word
+
+------------------------------------------------------------
+Vim-native
+------------------------------------------------------------
+
+Copy 1 baris:
+
+  yy
+
+Copy 5 baris:
+
+  5yy
+
+Copy 1 kata:
+
+  yw
+
+Copy dari cursor sampai akhir baris:
+
+  y$
+
+Copy selection:
+
+  pilih dengan v / V
+  tekan y
+
+Paste setelah cursor:
+
+  p
+
+Paste sebelum cursor:
+
+  P
+
+Cut 1 baris:
+
+  dd
+
+Cut 5 baris:
+
+  5dd
+
+Cut selection:
+
+  pilih teks
+  tekan d
+
+Delete karakter di cursor:
+
+  x
+
+Delete karakter sebelum cursor saat insert:
+
+  Backspace
+
+------------------------------------------------------------
+VSCode-like keymap
+------------------------------------------------------------
+
+Select all:
+
+  Ctrl+a
+
+Copy:
+
+  Ctrl+c
+
+Cut:
+
+  Ctrl+x
+
+Paste:
+
+  Ctrl+v
+
+Save:
+
+  Ctrl+s
+
+Undo:
+
+  Ctrl+z
+
+Redo:
+
+  Ctrl+y
+
+Catatan:
+Di Normal Mode, Ctrl+c copy 1 baris.
+Di Visual Mode, Ctrl+c copy selection.
+
+============================================================
+5. SELECT TEXT
+============================================================
+
+Select karakter:
+
+  v
+
+Select baris:
+
+  V
+
+Select block / kolom:
+
+  Ctrl+q
+
+Setelah select:
+
+  y        copy
+  d        cut/delete
+  c        delete lalu masuk insert
+  >        indent kanan
+  <        indent kiri
+  gc       comment/uncomment selection
+
+Config terbaru juga punya:
+
+  Tab        indent selection
+  Shift+Tab  unindent selection
+
+============================================================
+6. MULTI-CURSOR / CTRL+D SEPERTI VSCODE
+============================================================
+
+Plugin:
+
+  vim-visual-multi
+
+Tujuan:
+Mirip VSCode Ctrl+D.
+
+Cara pakai:
+
+1. Taruh cursor di kata.
+2. Tekan:
+
+   Ctrl+d
+
+3. Tekan lagi Ctrl+d untuk pilih match berikutnya.
+4. Setelah beberapa kata terseleksi, ketik perubahan.
+5. Semua cursor ikut berubah.
+
+Contoh:
+Ada beberapa kata:
+
+  user
+  user
+  user
+
+Taruh cursor di user pertama.
+Tekan Ctrl+d beberapa kali.
+Ketik customer.
+Semua pilihan berubah.
+
+Catatan:
+Kalau multi-cursor terasa aneh, tekan Esc beberapa kali untuk keluar.
+
+============================================================
+7. REPLACE / GANTI TEKS
+============================================================
+
+------------------------------------------------------------
+Replace semua dalam file
+------------------------------------------------------------
+
+  :%s/lama/baru/g
+
+Contoh:
+
+  :%s/user/customer/g
+
+------------------------------------------------------------
+Replace dengan konfirmasi satu-satu
+------------------------------------------------------------
+
+  :%s/lama/baru/gc
+
+Saat muncul pertanyaan:
+
+  y    replace ini
+  n    skip ini
+  a    replace semua sisanya
+  q    stop
+
+------------------------------------------------------------
+Replace kata di bawah cursor
+------------------------------------------------------------
+
+Config kamu punya:
+
+  Space rw
+
+Cara:
+1. Taruh cursor di kata.
+2. Tekan Space rw.
+3. Isi kata pengganti.
+4. Confirm satu-satu.
+
+============================================================
+8. UNDO / REDO
+============================================================
+
+Vim-native:
+
+  u        undo
+  Ctrl+r   redo
+
+VSCode-like:
+
+  Ctrl+z   undo
+  Ctrl+y   redo
+
+============================================================
+9. SAVE / QUIT / AUTOSAVE
+============================================================
+
+Save:
+
+  Ctrl+s
+
+Atau:
+
+  :w
+
+Quit:
+
+  :q
+
+Save and quit:
+
+  :wq
+
+Force quit tanpa simpan:
+
+  :q!
+
+Config kamu punya autosave.
+
+Autosave jalan saat:
+- keluar Insert Mode
+- text berubah
+
+Tapi tetap pakai Ctrl+s kalau ingin aman.
+
+============================================================
+10. BUFFER / TAB FILE
+============================================================
+
+Plugin:
+
+  bufferline.nvim
+
+Di Neovim, file terbuka disebut:
+
+  buffer
+
+Bufferline membuat buffer terlihat seperti tab di atas.
+
+Pindah buffer berikutnya:
+
+  Tab
+
+Pindah buffer sebelumnya:
+
+  Shift+Tab
+
+List buffer:
+
+  Space fb
+
+Close buffer:
+
+  Space bd
+
+Command manual:
+
+  :ls       lihat semua buffer
+  :bn       buffer next
+  :bp       buffer previous
+  :bd       delete/close buffer
+
+Catatan:
+Tab asli Neovim beda dengan buffer.
+Untuk kerja harian, pakai buffer saja.
+
+============================================================
+11. TERMINAL DI DALAM NEOVIM
+============================================================
+
+Plugin:
+
+  toggleterm.nvim
+
+Buka/tutup terminal bawah:
+
+  Ctrl+\
+
+Atau:
+
+  Space tt
+
+Terminal vertical:
+
+  Space tv
+
+Terminal floating:
+
+  Space tf
+
+Keluar dari terminal mode:
+
+  Ctrl+\ lalu Ctrl+n
+
+Catatan:
+Kalau kamu pakai tmux, ToggleTerm tetap opsional.
+Untuk banyak CLI, tmux lebih kuat.
+
+============================================================
+12. TMUX
+============================================================
+
+Tmux adalah terminal multiplexer.
+Fungsinya seperti banyak terminal dalam 1 window.
+
+Masuk tmux:
+
+  tmux
+
+------------------------------------------------------------
+Pane / split
+------------------------------------------------------------
+
+Split vertical kiri-kanan:
+
+  Ctrl+b lalu %
+
+Split horizontal atas-bawah:
+
+  Ctrl+b lalu "
+
+Pindah pane:
+
+  Ctrl+b lalu panah
+
+Tutup pane:
+
+  Ctrl+b lalu x
+  lalu y
+
+Atau dari shell:
+
+  exit
+
+------------------------------------------------------------
+Window tmux
+------------------------------------------------------------
+
+Window baru:
+
+  Ctrl+b lalu c
+
+Window berikutnya:
+
+  Ctrl+b lalu n
+
+Window sebelumnya:
+
+  Ctrl+b lalu p
+
+Rename window:
+
+  Ctrl+b lalu ,
+
+------------------------------------------------------------
+Session
+------------------------------------------------------------
+
+Detach dari tmux:
+
+  Ctrl+b lalu d
+
+Lihat session:
+
+  tmux ls
+
+Masuk lagi:
+
+  tmux attach
+
+Kill session:
+
+  tmux kill-session -t nama_session
+
+------------------------------------------------------------
+Workflow Laravel dengan tmux
+------------------------------------------------------------
+
+Contoh layout:
+
+Pane 1:
+
+  nvim .
+
+Pane 2:
+
+  php artisan serve
+
+Pane 3:
+
+  npm run dev
+
+Pane 4:
+
+  php artisan queue:work
+
+Pane 5:
+
+  tail -f storage/logs/laravel.log
+
+Pane 6:
+
+  codex
+
+============================================================
+13. COMMENT / UNCOMMENT
+============================================================
+
+Plugin:
+
+  Comment.nvim
+
+Comment 1 baris:
+
+  gcc
+
+Comment selection:
+
+  pilih teks
+  tekan gc
+
+VSCode-like:
+
+  Ctrl+/
+
+Catatan:
+Di banyak terminal, Ctrl+/ kadang tidak terbaca.
+Kalau tidak jalan, pakai gcc atau gc.
+
+============================================================
+14. AUTOPAIRS
+============================================================
+
+Plugin:
+
+  nvim-autopairs
+
+Fungsi:
+Saat ketik pembuka, otomatis bikin penutup.
+
+Contoh:
+
+  (  menjadi  ()
+  {  menjadi  {}
+  [  menjadi  []
+  "  menjadi  ""
+  '  menjadi  ''
+
+============================================================
+15. AUTOCOMPLETE
+============================================================
+
+Plugin:
+
+  nvim-cmp
+  cmp-nvim-lsp
+  LuaSnip
+  cmp_luasnip
+  friendly-snippets
+
+Autocomplete muncul saat mengetik.
+
+Manual trigger:
+
+  Ctrl+Space
+
+Pilih item berikutnya:
+
+  Tab
+
+Pilih item sebelumnya:
+
+  Shift+Tab
+
+Confirm pilihan:
+
+  Enter
+
+Snippet:
+Kalau snippet tersedia, Tab bisa lompat antar placeholder.
+
+============================================================
+16. LSP / INTELLISENSE
+============================================================
+
+Plugin:
+
+  nvim-lspconfig
+  mason.nvim
+  mason-lspconfig.nvim
+
+LSP yang disiapkan:
+
+  gopls
+  intelephense
+  lua_ls
+  ts_ls
+  html
+  cssls
+  jsonls
+  emmet_language_server
+
+------------------------------------------------------------
+Key LSP
+------------------------------------------------------------
+
+Go to definition:
+
+  gd
+
+Find references:
+
+  gr
+
+Hover documentation:
+
+  K
+
+Rename symbol:
+
+  Space rn
+
+Code action:
+
+  Space ca
+
+Diagnostic under cursor:
+
+  Space dd
+
+Diagnostic sebelumnya:
+
+  [d
+
+Diagnostic berikutnya:
+
+  ]d
+
+Masukkan diagnostic ke loclist:
+
+  Space dq
+
+------------------------------------------------------------
+PHP / Laravel
+------------------------------------------------------------
+
+LSP PHP:
+
+  intelephense
+
+Fungsi:
+- autocomplete class PHP
+- go to definition
+- references
+- hover
+- rename symbol
+- diagnostics
+
+Catatan:
+Untuk hasil terbaik, buka Neovim dari root project Laravel, bukan dari subfolder terlalu dalam.
+
+Contoh:
+
+  cd ~/Code/laravel/bengkel2
+  nvim .
+
+Bukan:
+
+  cd ~/Code/laravel/bengkel2/app
+  nvim .
+
+Kenapa?
+LSP lebih mudah membaca composer.json, vendor, routes, app, config, dll.
+
+============================================================
+17. FORMATTER / RAPIKAN KODE
+============================================================
+
+Plugin:
+
+  conform.nvim
+
+Formatter yang disiapkan:
+
+  PHP              pint
+  JavaScript       prettier
+  TypeScript       prettier
+  React JS         prettier
+  React TS         prettier
+  HTML             prettier
+  CSS              prettier
+  JSON             prettier
+  Lua              stylua
+
+Format manual:
+
+  Space fm
+
+Format on save:
+Aktif untuk beberapa filetype di config.
+
+------------------------------------------------------------
+Catatan penting PHP / Laravel Pint
+------------------------------------------------------------
+
+Config memakai formatter:
+
+  pint
+
+Biasanya di Laravel tersedia sebagai:
+
+  vendor/bin/pint
+
+Cek:
+
+  ls vendor/bin/pint
+
+Kalau ada:
+
+  ./vendor/bin/pint
+
+Kalau tidak ada, install via composer sesuai kebutuhan project.
+
+============================================================
+18. TREESITTER / SYNTAX HIGHLIGHTING
+============================================================
+
+Plugin:
+
+  nvim-treesitter
+
+Fungsi:
+- syntax highlight lebih akurat
+- indent lebih pintar
+- parsing struktur kode
+
+Bahasa yang disiapkan:
+
+  lua
+  vim
+  vimdoc
+  php
+  html
+  css
+  javascript
+  typescript
+  json
+  go
+  bash
+
+Command penting:
+
+  :TSInstallInfo
+
+Update parser:
+
+  :TSUpdate
+
+Catatan:
+Config kamu dipin ke branch master agar cocok dengan config Treesitter lama.
+
+============================================================
+19. GIT INDICATOR
+============================================================
+
+Plugin:
+
+  gitsigns.nvim
+
+Fungsi:
+Menampilkan tanda perubahan Git di kiri baris.
+
+Biasanya terlihat:
+- baris baru
+- baris berubah
+- baris dihapus
+
+Ini mirip gutter Git di VSCode.
+
+============================================================
+20. STATUSLINE
+============================================================
+
+Plugin:
+
+  lualine.nvim
+
+Fungsi:
+Bar bawah yang menampilkan info seperti:
+- mode
+- file
+- branch
+- diagnostics
+- posisi cursor
+
+============================================================
+21. DASHBOARD
+============================================================
+
+Plugin:
+
+  alpha-nvim
+
+Fungsi:
+Tampilan awal saat buka Neovim tanpa file.
+
+Menu:
+- Find file
+- Search text
+- Explorer
+- New file
+- Quit
+
+============================================================
+22. ICON
+============================================================
+
+Plugin:
+
+  nvim-web-devicons
+
+Fungsi:
+Memberi icon file/folder untuk:
+- NvimTree
+- Telescope
+- Bufferline
+- Lualine
+- Dashboard
+
+============================================================
+23. CODEX CLI
+============================================================
+
+Codex sudah kamu install via npm global user directory.
+
+Jalankan dari root project:
+
+  codex
+
+Di dalam tmux:
+- buat pane khusus
+- jalankan codex di situ
+
+Di dalam Neovim:
+- buka terminal dengan Space tt atau Ctrl+\
+- jalankan:
+
+  codex
+
+Command berguna dalam Codex:
+
+  /model
+  /logout
+  /skills
+
+Workflow:
+1. cd ke root project
+2. buka tmux
+3. pane 1: nvim .
+4. pane 2: codex
+5. pane 3: php artisan serve
+6. pane 4: npm run dev
+
+============================================================
+24. DEPENDENCY SYSTEM YANG KAMU INSTALL
+============================================================
+
+Pacman packages:
+
+  ripgrep
+  fd
+  unzip
+  xclip
+  nodejs
+  npm
+  php
+  composer
+  tmux
+
+Fungsi:
+
+ripgrep:
+  search text cepat untuk Telescope live_grep
+
+fd:
+  pencarian file cepat untuk Telescope
+
+unzip:
+  dibutuhkan beberapa installer/tooling
+
+xclip:
+  clipboard provider untuk Openbox/X11
+
+nodejs:
+  runtime JS
+
+npm:
+  install package JS dan Codex CLI
+
+php:
+  runtime PHP untuk Laravel
+
+composer:
+  package manager PHP/Laravel
+
+tmux:
+  multi terminal / terminal multiplexer
+
+============================================================
+25. CHECK HEALTH / TROUBLESHOOTING
+============================================================
+
+Cek semua health:
+
+  :checkhealth
+
+Cek plugin:
+
+  :Lazy
+
+Sync/update plugin:
+
+  :Lazy sync
+
+Cek Mason:
+
+  :Mason
+
+Cek LSP aktif:
+
+  :LspInfo
+
+Cek Treesitter:
+
+  :TSInstallInfo
+
+Cek clipboard:
+
+  :checkhealth provider
+
+Cek path command di shell:
+
+  which nvim
+  type nvim
+
+============================================================
+26. TROUBLESHOOTING CLIPBOARD
+============================================================
+
+Kalau copy-paste tidak nyambung dengan sistem:
+
+1. Pastikan di init.lua ada:
+
+   vim.opt.clipboard = "unnamedplus"
+
+2. Karena kamu pakai Openbox/X11, pastikan:
+
+   xclip
+
+3. Test:
+
+   echo test | xclip -selection clipboard
+
+Lalu paste di app lain.
+
+============================================================
+27. TROUBLESHOOTING CTRL+SHIFT+F
+============================================================
+
+Kalau Ctrl+Shift+F tidak membuka search project, itu biasanya karena terminal emulator tidak mengirim kombinasi itu ke Neovim.
+
+Solusi pasti:
+
+  Space fg
+
+Ini mapping Vim-style dan lebih stabil.
+
+============================================================
+28. TROUBLESHOOTING CTRL+/
+============================================================
+
+Kalau Ctrl+/ tidak comment:
+
+Pakai:
+
+  gcc
+
+Untuk selection:
+
+  gc
+
+Ini lebih stabil dibanding Ctrl+/ di terminal.
+
+============================================================
+29. COMMAND VIM PENTING
+============================================================
+
+Buka file:
+
+  :e path/file
+
+Save:
+
+  :w
+
+Quit:
+
+  :q
+
+Save quit:
+
+  :wq
+
+Force quit:
+
+  :q!
+
+Reload file dari disk:
+
+  :e!
+
+Cari:
+
+  /kata
+
+Replace semua:
+
+  :%s/lama/baru/g
+
+Replace confirm:
+
+  :%s/lama/baru/gc
+
+Pilih semua:
+
+  ggVG
+
+Copy semua:
+
+  ggVGy
+
+Delete semua:
+
+  ggVGd
+
+Ke awal file:
+
+  gg
+
+Ke akhir file:
+
+  G
+
+Ke line 20:
+
+  :20
+
+============================================================
+30. WORKFLOW HARIAN YANG DISARANKAN
+============================================================
+
+Untuk Laravel:
+
+  cd ~/Code/laravel/bengkel2
+  tmux
+
+Di tmux:
+
+Pane 1:
+
+  nvim .
+
+Pane 2:
+
+  php artisan serve
+
+Pane 3:
+
+  npm run dev
+
+Pane 4:
+
+  tail -f storage/logs/laravel.log
+
+Pane 5:
+
+  codex
+
+Di Neovim:
+
+  Ctrl+p       cari file
+  Space fg     cari teks project
+  Ctrl+e       explorer
+  gd           go to definition
+  K            hover docs
+  Space rn     rename
+  Space ca     code action
+  Space fm     format
+  Ctrl+d       multi-cursor
+  Tab          next buffer
+  Shift+Tab    prev buffer
+
+============================================================
+31. MAPPING CEPAT VSCODE KE NEOVIM KAMU
+============================================================
+
+VSCode                         Neovim kamu
+
+Ctrl+P                         Ctrl+p
+Ctrl+F                         Ctrl+f atau /kata
+Ctrl+Shift+F                   Ctrl+Shift+f atau Space fg
+Ctrl+A                         Ctrl+a
+Ctrl+C                         Ctrl+c
+Ctrl+X                         Ctrl+x
+Ctrl+V                         Ctrl+v
+Ctrl+S                         Ctrl+s
+Ctrl+Z                         Ctrl+z
+Ctrl+Y                         Ctrl+y
+Ctrl+D                         Ctrl+d
+Explorer                       Ctrl+e
+Terminal                       Ctrl+\ atau Space tt
+Format Document                Space fm
+Rename Symbol                  Space rn
+Code Action                    Space ca
+Go to Definition               gd
+Find References                gr
+Hover                          K
+Next tab                       Tab
+Previous tab                   Shift+Tab
+Close tab/buffer               Space bd
+Comment line                   gcc atau Ctrl+/
+Comment selection              visual lalu gc
+Visual block                   Ctrl+q
+
+============================================================
+32. JIKA BINGUNG, INGAT 7 TOMBOL INI
+============================================================
+
+Esc       balik ke Normal Mode
+i         mulai mengetik
+Ctrl+p    cari file
+Space fg  cari teks project
+Ctrl+e    buka explorer
+Ctrl+s    save
+u         undo
+
+============================================================
+END OF MANUAL
+============================================================
+MANUAL

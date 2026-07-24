@@ -56,6 +56,7 @@ wifi disconnect   : Putus koneksi aktif
 wifi saved        : Lihat daftar jaringan tersimpan
 wifi delete "SSID": Hapus profil tersimpan
 wifi ip           : Lihat IP Wi-Fi saat ini
+speedtest         : Cek kecepatan internet
 
 bat               : Cek status baterai
 helpme            : Tampilkan catatan ini

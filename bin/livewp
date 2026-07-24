@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+WP_DIR="$HOME/media/video/wallpaper"
+INDEX_FILE="/tmp/livewp.index"
+
+mapfile -t videos < <(find "$WP_DIR" -maxdepth 1 -type f -name "*.mp4" -printf "%f\n" | sort)
+total_videos=${#videos[@]}
+
+if [ $total_videos -eq 0 ]; then
+    echo "Error: Tidak ada file .mp4 di folder $WP_DIR"
+    exit 1
+fi
+
+stop_wp() {
+    # 1. Hentikan paksa mpv
+    pkill -f "mpv --wid=0" > /dev/null 2>&1
+    
+    # 2. EKSEKUSI PEMBERSIHAN TAHAP 1
+    xsetroot -solid "#1e1e2e" > /dev/null 2>&1
+    if command -v xrefresh >/dev/null 2>&1; then xrefresh; fi
+    
+    # Jeda mikro (0.1 detik) memberikan waktu bagi GPU untuk mengosongkan buffer mpv
+    sleep 0.1
+    
+    # 3. EKSEKUSI PEMBERSIHAN TAHAP 2 (Otomatis pemicu kedua agar gambar hilang)
+    xsetroot -solid "#1e1e2e" > /dev/null 2>&1
+    if command -v xrefresh >/dev/null 2>&1; then xrefresh; fi
+    
+    echo "✔ Live wallpaper dihentikan secara bersih via sekuens ganda otomatis."
+}
+
+play_video() {
+    local idx=$1
+    local selected_video="${videos[$idx]}"
+    
+    pkill -f "mpv --wid=0" > /dev/null 2>&1
+    
+    mpv --wid=0 --loop --no-audio --vo=gpu --hwdec=auto --force-window=yes "$WP_DIR/$selected_video" > /dev/null 2>&1 &
+    
+    echo "$idx" > "$INDEX_FILE"
+    echo "🔄 Playing [$((idx+1))/$total_videos]: $selected_video"
+}
+
+if [ "$1" = "stop" ]; then
+    stop_wp
+    exit 0
+fi
+
+# Memeriksa apakah argumen pertama berupa angka (indeks manual)
+if [[ "$1" =~ ^[0-9]+$ ]]; then
+    # Indeks array Bash dimulai dari 0. Jika video no 3 maksudnya indeks ke-2:
+    # Anda bisa memasukkan angka 2 langsung di autostart, atau ubah logika di bawah ini.
+    next_idx=$1
+elif [ -f "$INDEX_FILE" ]; then
+    current_idx=$(cat "$INDEX_FILE")
+    next_idx=$(( (current_idx + 1) % total_videos ))
+else
+    next_idx=0
+fi
+
+# Validasi agar tidak out-of-bounds jika indeks manual terlalu besar
+if [ $next_idx -ge $total_videos ]; then
+    next_idx=0
+fi
+
+play_video "$next_idx"

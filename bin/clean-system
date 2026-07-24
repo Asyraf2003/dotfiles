@@ -1,25 +1,51 @@
 #!/bin/bash
-# 🔧 Arch System Cleaner by Asyraf
+# 🔧 Arch System Cleaner by Asyraf (fixed)
+
+set -uo pipefail
 
 echo "🧹 Cleaning system cache and logs..."
-
-# Pastikan semua data disimpan
 sync
 
-# Bersihkan pagecache, dentries, dan inode cache
-echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null
-echo "✅ Memory cache cleared."
+# 1) Drop caches (OPSIONAL, default OFF)
+if [[ "${DROP_CACHES:-0}" == "1" ]]; then
+  echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null || true
+  echo "✅ Memory cache cleared (drop_caches=3)."
+fi
 
-# Bersihkan log lama (hanya simpan 3 hari terakhir)
-sudo journalctl --vacuum-time=3d
+# 2) Trim journal (keep last 3 days)
+sudo journalctl --vacuum-time=3d || true
 echo "🗑️ System logs trimmed to 3 days."
 
-# Bersihkan cache aplikasi user
-rm -rf ~/.cache/*
-echo "✨ User cache removed."
+# 3) Clean pacman cache (controlled)
+echo "📦 Cleaning pacman package cache via paccache..."
+sudo paccache -rk2 || true
+sudo paccache -ruk0 || true
+echo "✅ Pacman cache cleaned (controlled via paccache)."
 
-# Tampilkan hasil RAM
+# 4) Clean AUR helper cache (avoid touching pacman cache again)
+if command -v yay >/dev/null 2>&1; then
+  echo "📦 Cleaning yay build cache..."
+  yay -Yc --noconfirm || true
+  echo "✅ yay build cache cleaned."
+elif command -v paru >/dev/null 2>&1; then
+  echo "📦 Cleaning paru build cache..."
+  paru -c --noconfirm || true
+  echo "✅ paru build cache cleaned."
+else
+  echo "ℹ️ No AUR helper (yay/paru) detected, skipping AUR cache."
+fi
+
+# 5) User cache (targeted, avoid nuking everything)
+echo "✨ Cleaning user cache (targeted)..."
+rm -rf "${HOME}/.cache/thumbnails" "${HOME}/.cache/mesa_shader_cache" 2>/dev/null || true
+
+# 6) Summary
 echo
-free -h | grep -E "Mem|Swap"
+echo "📌 Sizes after cleanup:"
+sudo du -sh /var/cache/pacman/pkg 2>/dev/null || true
+du -sh "${HOME}/.cache" 2>/dev/null || true
+
+echo
+free -h | grep -E "Mem|Swap" || true
 echo
 echo "🎯 Clean complete!"
