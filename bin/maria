@@ -1,55 +1,224 @@
 #!/usr/bin/env bash
-action="${1:-start}"
-shift || true
-set -e
+
+set -uo pipefail
+
+readonly -a STACK_UNITS=(
+    mariadb.service
+    php-fpm.service
+    nginx.service
+)
+
+usage() {
+    cat <<'EOF'
+Usage:
+  maria start
+  maria stop
+  maria stackstatus
+  maria status
+  maria phpstatus
+  maria nginxstatus
+  maria --help
+
+No action is performed when no argument is given.
+
+Actions:
+  start         Start MariaDB, PHP-FPM, and Nginx.
+  stop          Stop Nginx, PHP-FPM, and MariaDB.
+  stackstatus   Show all three service states.
+  status        Show MariaDB state.
+  phpstatus     Show PHP-FPM state.
+  nginxstatus   Show Nginx state.
+EOF
+}
+
+show_unit_status() {
+    local unit="$1"
+    local load_state=""
+    local active_state=""
+    local sub_state=""
+    local enabled_state=""
+
+    load_state="$(
+        systemctl show "$unit" -p LoadState --value 2>/dev/null || true
+    )"
+    active_state="$(
+        systemctl show "$unit" -p ActiveState --value 2>/dev/null || true
+    )"
+    sub_state="$(
+        systemctl show "$unit" -p SubState --value 2>/dev/null || true
+    )"
+    enabled_state="$(
+        systemctl is-enabled "$unit" 2>/dev/null || true
+    )"
+
+    printf '%s LOAD=%s ENABLED=%s ACTIVE=%s SUB=%s\n' \
+        "$unit" \
+        "${load_state:-unknown}" \
+        "${enabled_state:-unknown}" \
+        "${active_state:-unknown}" \
+        "${sub_state:-unknown}"
+
+    [[ "$load_state" == "loaded" ]]
+}
+
+show_stack_status() {
+    local unit=""
+    local failures=0
+
+    for unit in "${STACK_UNITS[@]}"; do
+        if ! show_unit_status "$unit"; then
+            ((failures += 1))
+        fi
+    done
+
+    ((failures == 0))
+}
+
+require_units() {
+    local unit=""
+    local failures=0
+    local load_state=""
+
+    for unit in "${STACK_UNITS[@]}"; do
+        load_state="$(
+            systemctl show "$unit" -p LoadState --value 2>/dev/null || true
+        )"
+
+        if [[ "$load_state" != "loaded" ]]; then
+            printf 'UNIT_VALIDATION=FAIL unit=%s\n' "$unit" >&2
+            ((failures += 1))
+        fi
+    done
+
+    ((failures == 0))
+}
+
+require_sudo() {
+    if sudo -v; then
+        printf 'SUDO_AUTHENTICATION=PASS\n'
+    else
+        printf 'SUDO_AUTHENTICATION=FAIL\n' >&2
+        return 1
+    fi
+}
+
+start_stack() {
+    local unit=""
+    local state=""
+    local index=0
+    local -a started_now=()
+
+    require_units || return 1
+    require_sudo || return 1
+
+    for unit in "${STACK_UNITS[@]}"; do
+        state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+
+        if [[ "$state" == "active" ]]; then
+            printf 'SERVICE_START=SKIPPED_ALREADY_ACTIVE unit=%s\n' "$unit"
+            continue
+        fi
+
+        if sudo systemctl start "$unit"; then
+            printf 'SERVICE_START=PASS unit=%s\n' "$unit"
+            started_now+=("$unit")
+        else
+            printf 'SERVICE_START=FAIL unit=%s\n' "$unit" >&2
+
+            for ((index = ${#started_now[@]} - 1; index >= 0; index--)); do
+                if sudo systemctl stop "${started_now[$index]}"; then
+                    printf 'START_ROLLBACK=PASS unit=%s\n' \
+                        "${started_now[$index]}"
+                else
+                    printf 'START_ROLLBACK=FAIL unit=%s\n' \
+                        "${started_now[$index]}" >&2
+                fi
+            done
+
+            return 1
+        fi
+    done
+
+    printf 'STACK_START=PASS\n'
+    show_stack_status
+}
+
+stop_stack() {
+    local unit=""
+    local state=""
+    local index=0
+    local failures=0
+
+    require_units || return 1
+    require_sudo || return 1
+
+    for ((index = ${#STACK_UNITS[@]} - 1; index >= 0; index--)); do
+        unit="${STACK_UNITS[$index]}"
+        state="$(systemctl is-active "$unit" 2>/dev/null || true)"
+
+        if [[ "$state" != "active" ]]; then
+            printf 'SERVICE_STOP=SKIPPED_ALREADY_INACTIVE unit=%s\n' "$unit"
+            continue
+        fi
+
+        if sudo systemctl stop "$unit"; then
+            printf 'SERVICE_STOP=PASS unit=%s\n' "$unit"
+        else
+            printf 'SERVICE_STOP=FAIL unit=%s\n' "$unit" >&2
+            ((failures += 1))
+        fi
+    done
+
+    show_stack_status || true
+
+    if ((failures == 0)); then
+        printf 'STACK_STOP=PASS\n'
+        return 0
+    fi
+
+    printf 'STACK_STOP=FAIL failures=%s\n' "$failures" >&2
+    return 1
+}
+
+action="${1:-}"
+
+if [[ -z "$action" ]]; then
+    usage
+    exit 0
+fi
+
+shift
+
+if (($# > 0)); then
+    printf 'ARGUMENT_VALIDATION=FAIL reason=unexpected-extra-arguments\n' >&2
+    exit 2
+fi
 
 case "$action" in
-  start)
-    echo "Starting MariaDB (Database)..."
-    sudo systemctl start mariadb.service
-
-    echo "Starting PHP-FPM (PHP Processor)..."
-    sudo systemctl start php-fpm.service
-
-    echo "Starting Nginx (Web Server)..."
-    sudo systemctl start nginx.service
-
-    echo "-------------------------------------"
-    echo "Web Stack services STARTED. 🎉"
-    echo "Access phpMyAdmin at http://localhost/phpmyadmin"
-    ;;
-  
-  stop)
-    echo "Stopping Nginx..."
-    sudo systemctl stop nginx.service
-
-    echo "Stopping PHP-FPM..."
-    sudo systemctl stop php-fpm.service
-
-    echo "Stopping MariaDB..."
-    sudo systemctl stop mariadb.service
-
-    echo "-------------------------------------"
-    echo "Web Stack services STOPPED. 🛑"
-    ;;
-  
-  status)
-    echo "Checking MariaDB status..."
-    systemctl status mariadb.service --no-pager
-    ;;
-  
-  phpstatus)
-    echo "Checking PHP-FPM status..."
-    systemctl status php-fpm.service --no-pager
-    ;;
-  
-  nginxstatus)
-    echo "Checking Nginx status..."
-    systemctl status nginx.service --no-pager
-    ;;
-  
-  *)
-    echo "Usage: maria {start|stop|status|phpstatus|nginxstatus}"
-    exit 1
-    ;;
+    start)
+        start_stack
+        ;;
+    stop)
+        stop_stack
+        ;;
+    stackstatus)
+        show_stack_status
+        ;;
+    status|mariadbstatus)
+        show_unit_status mariadb.service
+        ;;
+    phpstatus)
+        show_unit_status php-fpm.service
+        ;;
+    nginxstatus)
+        show_unit_status nginx.service
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        printf 'ARGUMENT_VALIDATION=FAIL reason=unknown-action action=%s\n' \
+            "$action" >&2
+        exit 2
+        ;;
 esac

@@ -1,0 +1,12 @@
+acpi
+acpid
+brightnessctl
+cpupower
+dmidecode
+evtest
+hwinfo
+i2c-tools
+lshw
+nvme-cli
+power-profiles-daemon
+smartmontools

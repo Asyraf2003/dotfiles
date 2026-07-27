@@ -1,0 +1,309 @@
+#!/usr/bin/env bash
+
+set -u
+
+LAPTOP='eDP'
+LAPTOP_MODE='1920x1080'
+
+TV_MODE='3840x2160'
+TV_RATE='60'
+
+EXTEND_MODE='1920x1080'
+EXTEND_RATE='60'
+
+STATE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}"
+MIRROR_STATE="$STATE_DIR/hdmi-mirror-mode"
+
+mkdir -p "$STATE_DIR"
+
+find_external() {
+    xrandr --query |
+        rg '^(HDMI|DP)[^ ]* connected' |
+        awk 'NR == 1 { print $1 }'
+}
+
+notify_mode() {
+    local message="$1"
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send 'Mode layar' "$message"
+    fi
+
+    if [[ -t 1 ]]; then
+        printf '%s\n' "$message"
+    fi
+}
+
+report_error() {
+    local message="$1"
+
+    if [[ -t 1 ]]; then
+        printf 'ERROR: %s\n' "$message" >&2
+    else
+        printf '%s\n' "$message" |
+            dmenu -i -p 'Display error:'
+    fi
+}
+
+require_external() {
+    EXTERNAL="$(find_external)"
+
+    if [[ -z "$EXTERNAL" ]]; then
+        report_error 'HDMI/DisplayPort belum terhubung'
+        return 1
+    fi
+}
+
+reset_laptop_base() {
+    local external="${1:-}"
+
+    if [[ -n "$external" ]]; then
+        xrandr --output "$external" --off
+    fi
+
+    xrandr \
+        --fb 1920x1080 \
+        --output "$LAPTOP" \
+            --primary \
+            --mode "$LAPTOP_MODE" \
+            --scale 1x1 \
+            --pos 0x0
+}
+
+mirror_laptop_to_tv() {
+    require_external || return 0
+
+    reset_laptop_base "$EXTERNAL"
+
+    xrandr \
+        --fb 1920x1080 \
+        --output "$LAPTOP" \
+            --primary \
+            --mode "$LAPTOP_MODE" \
+            --scale 1x1 \
+            --pos 0x0 \
+        --output "$EXTERNAL" \
+            --mode "$TV_MODE" \
+            --rate "$TV_RATE" \
+            --scale-from 1920x1080 \
+            --pos 0x0
+
+    printf '%s\n' 'laptop' > "$MIRROR_STATE"
+    notify_mode 'Mirror: laptop mengikuti ke TV'
+}
+
+mirror_tv_to_laptop() {
+    require_external || return 0
+
+    reset_laptop_base "$EXTERNAL"
+
+    xrandr \
+        --fb 3840x2160 \
+        --output "$EXTERNAL" \
+            --primary \
+            --mode "$TV_MODE" \
+            --rate "$TV_RATE" \
+            --scale 1x1 \
+            --pos 0x0 \
+        --output "$LAPTOP" \
+            --mode "$LAPTOP_MODE" \
+            --scale-from 3840x2160 \
+            --pos 0x0
+
+    printf '%s\n' 'tv' > "$MIRROR_STATE"
+    notify_mode 'Mirror: TV menjadi acuan, laptop mengikuti'
+}
+
+mode_mirror() {
+    local previous='tv'
+
+    if [[ -f "$MIRROR_STATE" ]]; then
+        previous="$(cat "$MIRROR_STATE")"
+    fi
+
+    case "$previous" in
+        laptop)
+            mirror_tv_to_laptop
+            ;;
+        *)
+            mirror_laptop_to_tv
+            ;;
+    esac
+}
+
+mode_extend() {
+    require_external || return 0
+
+    reset_laptop_base "$EXTERNAL"
+
+    xrandr \
+        --fb 3840x1080 \
+        --output "$LAPTOP" \
+            --primary \
+            --mode "$LAPTOP_MODE" \
+            --scale 1x1 \
+            --pos 0x0 \
+        --output "$EXTERNAL" \
+            --mode "$EXTEND_MODE" \
+            --rate "$EXTEND_RATE" \
+            --scale 1x1 \
+            --pos 1920x0
+
+    notify_mode 'Extend: layar eksternal di sebelah kanan'
+}
+
+mode_tv() {
+    require_external || return 0
+
+    xrandr \
+        --output "$LAPTOP" --off \
+        --output "$EXTERNAL" \
+            --primary \
+            --mode "$TV_MODE" \
+            --rate "$TV_RATE" \
+            --scale 1x1 \
+            --pos 0x0
+
+    notify_mode 'TV saja: 3840x2160 @ 60 Hz'
+}
+
+mode_laptop() {
+    EXTERNAL="$(find_external)"
+
+    if [[ -n "$EXTERNAL" ]]; then
+        xrandr --output "$EXTERNAL" --off
+    fi
+
+    xrandr \
+        --fb 1920x1080 \
+        --output "$LAPTOP" \
+            --primary \
+            --mode "$LAPTOP_MODE" \
+            --scale 1x1 \
+            --pos 0x0
+
+    notify_mode 'Laptop saja: 1920x1080'
+}
+
+show_status() {
+    printf '%s\n' '--- XRandR ---'
+    xrandr --current |
+        rg 'Screen 0:| connected|disconnected'
+
+    printf '\n%s\n' '--- Mirror berikutnya ---'
+
+    case "$(cat "$MIRROR_STATE" 2>/dev/null || printf 'tv')" in
+        laptop)
+            printf '%s\n' 'TV menjadi acuan, laptop mengikuti'
+            ;;
+        *)
+            printf '%s\n' 'Laptop menjadi acuan, TV mengikuti'
+            ;;
+    esac
+
+    printf '\n%s\n' '--- DRM ---'
+
+    for status_file in /sys/class/drm/*/status; do
+        [[ -f "$status_file" ]] || continue
+
+        printf '%-50s %s\n' \
+            "$status_file" \
+            "$(cat "$status_file")"
+    done
+}
+
+show_help() {
+    cat <<'EOF'
+Panduan HDMI
+
+  hdmi mirror    Toggle mirror:
+                   1x Laptop → TV
+                   2x TV → Laptop
+                   3x Laptop → TV
+                   dan seterusnya
+
+  hdmi extend    Perluas desktop ke kanan
+  hdmi tv        Gunakan TV saja
+  hdmi laptop    Gunakan laptop saja
+  hdmi status    Lihat status dan arah mirror berikutnya
+  hdmi menu      Buka menu dmenu
+  hdmi help      Tampilkan panduan
+
+Shortcut:
+
+  Fn+F8          Buka menu layar
+  Super+P        Buka menu layar
+  Super+F8       Buka menu layar
+  Super+Shift+P  Buka DBeaver
+EOF
+}
+
+show_menu() {
+    local choice
+
+    choice="$(
+        printf '%s\n' \
+            'Mirror / Ganti Arah' \
+            'Extend ke Kanan' \
+            'TV Saja' \
+            'Laptop Saja' \
+            'Lihat Status' |
+            dmenu -i -p 'Mode layar:'
+    )"
+
+    case "$choice" in
+        'Mirror / Ganti Arah')
+            mode_mirror
+            ;;
+        'Extend ke Kanan')
+            mode_extend
+            ;;
+        'TV Saja')
+            mode_tv
+            ;;
+        'Laptop Saja')
+            mode_laptop
+            ;;
+        'Lihat Status')
+            show_status |
+                dmenu -i -l 14 -p 'Status layar:'
+            ;;
+        *)
+            ;;
+    esac
+}
+
+case "${1:-}" in
+    mirror)
+        mode_mirror
+        ;;
+    extend)
+        mode_extend
+        ;;
+    tv|external)
+        mode_tv
+        ;;
+    laptop|internal)
+        mode_laptop
+        ;;
+    status)
+        show_status
+        ;;
+    menu)
+        show_menu
+        ;;
+    help|-h|--help)
+        show_help
+        ;;
+    '')
+        if [[ -t 0 && -t 1 ]]; then
+            show_help
+        else
+            show_menu
+        fi
+        ;;
+    *)
+        printf 'Perintah tidak dikenal: %s\n\n' "$1" >&2
+        show_help
+        ;;
+esac

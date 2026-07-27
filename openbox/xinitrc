@@ -1,0 +1,2 @@
+# Minimal TTY to Openbox session
+exec openbox-session

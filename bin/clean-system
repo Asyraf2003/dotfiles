@@ -1,51 +1,170 @@
-#!/bin/bash
-# 🔧 Arch System Cleaner by Asyraf (fixed)
+#!/usr/bin/env bash
 
 set -uo pipefail
 
-echo "🧹 Cleaning system cache and logs..."
-sync
+mode="dry-run"
+journal_days=""
+arguments_valid=1
+help_requested=0
+failures=0
 
-# 1) Drop caches (OPSIONAL, default OFF)
-if [[ "${DROP_CACHES:-0}" == "1" ]]; then
-  echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null || true
-  echo "✅ Memory cache cleared (drop_caches=3)."
+usage() {
+    cat <<'EOF'
+Usage:
+  clean-system
+  clean-system --dry-run
+  clean-system --apply
+  clean-system --apply --journal-days N
+
+Default behavior is read-only.
+
+Options:
+  --dry-run         Show cleanup candidates without removing anything.
+  --apply           Apply approved pacman and targeted user-cache cleanup.
+  --journal-days N  Vacuum journals older than N days. Requires --apply.
+  -h, --help        Show this help.
+EOF
+}
+
+while (($# > 0)); do
+    case "$1" in
+        --dry-run)
+            mode="dry-run"
+            ;;
+        --apply)
+            mode="apply"
+            ;;
+        --journal-days)
+            if (($# < 2)); then
+                printf 'ARGUMENT_VALIDATION=FAIL reason=missing-journal-days\n' >&2
+                arguments_valid=0
+            elif [[ ! "$2" =~ ^[1-9][0-9]*$ ]]; then
+                printf 'ARGUMENT_VALIDATION=FAIL reason=invalid-journal-days\n' >&2
+                arguments_valid=0
+                shift
+            else
+                journal_days="$2"
+                shift
+            fi
+            ;;
+        -h|--help)
+            help_requested=1
+            ;;
+        *)
+            printf 'ARGUMENT_VALIDATION=FAIL reason=unknown-option option=%s\n' "$1" >&2
+            arguments_valid=0
+            ;;
+    esac
+
+    shift
+done
+
+if ((help_requested == 1)); then
+    usage
+    exit 0
 fi
 
-# 2) Trim journal (keep last 3 days)
-sudo journalctl --vacuum-time=3d || true
-echo "🗑️ System logs trimmed to 3 days."
-
-# 3) Clean pacman cache (controlled)
-echo "📦 Cleaning pacman package cache via paccache..."
-sudo paccache -rk2 || true
-sudo paccache -ruk0 || true
-echo "✅ Pacman cache cleaned (controlled via paccache)."
-
-# 4) Clean AUR helper cache (avoid touching pacman cache again)
-if command -v yay >/dev/null 2>&1; then
-  echo "📦 Cleaning yay build cache..."
-  yay -Yc --noconfirm || true
-  echo "✅ yay build cache cleaned."
-elif command -v paru >/dev/null 2>&1; then
-  echo "📦 Cleaning paru build cache..."
-  paru -c --noconfirm || true
-  echo "✅ paru build cache cleaned."
-else
-  echo "ℹ️ No AUR helper (yay/paru) detected, skipping AUR cache."
+if ((arguments_valid == 0)); then
+    exit 2
 fi
 
-# 5) User cache (targeted, avoid nuking everything)
-echo "✨ Cleaning user cache (targeted)..."
-rm -rf "${HOME}/.cache/thumbnails" "${HOME}/.cache/mesa_shader_cache" 2>/dev/null || true
+report_size() {
+    local label="$1"
+    local path="$2"
+    local size=""
 
-# 6) Summary
-echo
-echo "📌 Sizes after cleanup:"
-sudo du -sh /var/cache/pacman/pkg 2>/dev/null || true
-du -sh "${HOME}/.cache" 2>/dev/null || true
+    if [[ ! -e "$path" ]]; then
+        printf '%s=ABSENT path=%s\n' "$label" "$path"
+        return
+    fi
 
-echo
-free -h | grep -E "Mem|Swap" || true
-echo
-echo "🎯 Clean complete!"
+    size="$(
+        du -sh "$path" 2>/dev/null |
+            tail -n 1 |
+            awk '{print $1}'
+    )"
+
+    printf '%s=%s path=%s\n' \
+        "$label" "${size:-UNKNOWN}" "$path"
+}
+
+run_step() {
+    local label="$1"
+    shift
+
+    if "$@"; then
+        printf '%s=PASS\n' "$label"
+    else
+        printf '%s=FAIL\n' "$label" >&2
+        ((failures += 1))
+    fi
+}
+
+if ((arguments_valid == 1)); then
+    printf 'MODE=%s\n' "$mode"
+
+    printf '\n===== CURRENT STATE =====\n'
+    journalctl --disk-usage 2>&1 || true
+    report_size "PACMAN_CACHE_SIZE" "/var/cache/pacman/pkg"
+    report_size "YAY_CACHE_SIZE" "$HOME/.cache/yay"
+    report_size "USER_CACHE_SIZE" "$HOME/.cache"
+
+    printf '\n===== PACMAN CACHE CANDIDATES =====\n'
+    run_step \
+        "PACCACHE_INSTALLED_DRY_RUN" \
+        paccache -d -k2
+
+    run_step \
+        "PACCACHE_UNINSTALLED_DRY_RUN" \
+        paccache -d -u -k0
+
+    printf '\n===== AUR CACHE POLICY =====\n'
+    printf 'AUR_CACHE_AUTOMATIC_CLEANUP=DEFERRED\n'
+    printf 'AUR_CACHE_REASON=requires-package-level-review\n'
+
+    if [[ "$mode" == "dry-run" ]]; then
+        printf '\nCHANGES_APPLIED=NO\n'
+
+        if [[ -n "$journal_days" ]]; then
+            printf 'JOURNAL_VACUUM_CANDIDATE=sudo journalctl --vacuum-time=%sd\n' \
+                "$journal_days"
+        fi
+    else
+        printf '\n===== APPLY APPROVED CLEANUP =====\n'
+
+        run_step \
+            "PACCACHE_INSTALLED_APPLY" \
+            sudo paccache -r -k2
+
+        run_step \
+            "PACCACHE_UNINSTALLED_APPLY" \
+            sudo paccache -r -u -k0
+
+        run_step \
+            "TARGETED_USER_CACHE_APPLY" \
+            rm -rf \
+                "$HOME/.cache/thumbnails" \
+                "$HOME/.cache/mesa_shader_cache"
+
+        if [[ -n "$journal_days" ]]; then
+            run_step \
+                "JOURNAL_VACUUM_APPLY" \
+                sudo journalctl --vacuum-time="${journal_days}d"
+        else
+            printf 'JOURNAL_VACUUM_APPLY=SKIPPED_NOT_REQUESTED\n'
+        fi
+
+        printf 'DROP_CACHES_APPLY=REJECTED_BY_POLICY\n'
+        printf 'AUR_CACHE_APPLY=DEFERRED_FOR_MANUAL_REVIEW\n'
+    fi
+
+    printf '\n===== FINAL STATE =====\n'
+    journalctl --disk-usage 2>&1 || true
+    report_size "PACMAN_CACHE_SIZE" "/var/cache/pacman/pkg"
+    report_size "YAY_CACHE_SIZE" "$HOME/.cache/yay"
+    report_size "USER_CACHE_SIZE" "$HOME/.cache"
+
+    printf '\nFAILURE_COUNT=%s\n' "$failures"
+
+    ((failures == 0))
+fi

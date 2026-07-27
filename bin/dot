@@ -1,0 +1,757 @@
+#!/usr/bin/env bash
+
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
+DOT_EXPECTED_BRANCH="${DOT_EXPECTED_BRANCH:-sync-origin-main}"
+
+PROFILE_ROOT="$DOTFILES_DIR/packages"
+NATIVE_ROOT="$PROFILE_ROOT/native"
+AUR_ROOT="$PROFILE_ROOT/aur"
+
+NATIVE_MANIFEST="$DOTFILES_DIR/pkglist_pacman_repo.txt"
+AUR_MANIFEST="$DOTFILES_DIR/pkglist_aur.txt"
+LEGACY_MANIFEST="$DOTFILES_DIR/pkglist_pacman.txt"
+BOOTSTRAP_FILE="$DOTFILES_DIR/bootstrap.sh"
+
+STATE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
+LINK_STATE="$STATE_ROOT/last-link.tsv"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  dot doctor
+  dot status
+  dot install [--dry-run|--apply] [--aur] PROFILE...
+  dot link [--dry-run|--apply]
+  dot rollback [--dry-run|--apply]
+  dot help
+
+Commands default to dry-run where modification is possible.
+
+Installable profiles:
+  core openbox laptop dev display vpn live-wallpaper optional
+
+Blocked automatic profiles:
+  manual-system legacy-disabled manual-bootstrap
+
+No command automatically activates or removes services.
+EOF
+}
+
+die() {
+    local code="$1"
+    shift
+    printf '%s\n' "$*" >&2
+    return "$code"
+}
+
+entries() {
+    rg -v '^[[:space:]]*(#|$)' "$1" 2>/dev/null |
+        sort -u
+}
+
+profile_entries() {
+    cat "$1"/*.txt 2>/dev/null |
+        rg -v '^[[:space:]]*(#|$)' |
+        sort -u
+}
+
+profile_names() {
+    local path
+
+    for path in "$1"/*.txt; do
+        [[ -f "$path" ]] || continue
+        basename "${path%.txt}"
+    done |
+        sort
+}
+
+profile_duplicates() {
+    cat "$1"/*.txt 2>/dev/null |
+        rg -v '^[[:space:]]*(#|$)' |
+        sort |
+        uniq -d
+}
+
+count_entries() {
+    local count=0
+
+    while IFS= read -r _; do
+        count=$((count + 1))
+    done < <(entries "$1")
+
+    printf '%d\n' "$count"
+}
+
+doctor() {
+    local failures=0
+    local branch
+    local duplicates
+    local overlap
+    local required
+
+    local expected_native
+    local expected_aur
+    local expected_core
+
+    expected_native="$(
+        printf '%s\n' \
+            core dev display laptop legacy-disabled \
+            live-wallpaper manual-system openbox optional vpn |
+            sort
+    )"
+
+    expected_aur="$(
+        printf '%s\n' \
+            dev laptop live-wallpaper \
+            manual-bootstrap openbox optional |
+            sort
+    )"
+
+    expected_core="$(
+        printf '%s\n' \
+            bash-completion bat fastfetch fd fzf git less \
+            neovim networkmanager pacman-contrib ripgrep \
+            tmux zoxide |
+            sort
+    )"
+
+    printf 'DOT_DOCTOR_MODE=READ_ONLY\n'
+
+    if [[ -d "$DOTFILES_DIR/.git" ]]; then
+        printf 'GIT_REPOSITORY=PASS\n'
+    else
+        printf 'GIT_REPOSITORY=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    branch="$(
+        git -C "$DOTFILES_DIR" branch --show-current 2>/dev/null ||
+            true
+    )"
+
+    if [[ "$branch" == "$DOT_EXPECTED_BRANCH" ]]; then
+        printf 'GIT_BRANCH=PASS branch=%s\n' "$branch"
+    else
+        printf 'GIT_BRANCH=FAIL expected=%s actual=%s\n' \
+            "$DOT_EXPECTED_BRANCH" \
+            "${branch:-UNRESOLVED}"
+        failures=$((failures + 1))
+    fi
+
+    for required in \
+        "$PROFILE_ROOT/PROFILE_POLICY.md" \
+        "$PROFILE_ROOT/CORE_DECISION.md" \
+        "$NATIVE_ROOT" \
+        "$AUR_ROOT" \
+        "$NATIVE_MANIFEST" \
+        "$AUR_MANIFEST" \
+        "$LEGACY_MANIFEST" \
+        "$BOOTSTRAP_FILE"
+    do
+        if [[ -e "$required" ]]; then
+            printf 'PATH_REQUIRED=PASS path=%s\n' "$required"
+        else
+            printf 'PATH_REQUIRED=FAIL path=%s\n' "$required"
+            failures=$((failures + 1))
+        fi
+    done
+
+    if diff -u \
+        <(printf '%s\n' "$expected_native") \
+        <(profile_names "$NATIVE_ROOT") \
+        >/dev/null
+    then
+        printf 'NATIVE_PROFILE_FILE_SET=PASS\n'
+    else
+        printf 'NATIVE_PROFILE_FILE_SET=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    if diff -u \
+        <(printf '%s\n' "$expected_aur") \
+        <(profile_names "$AUR_ROOT") \
+        >/dev/null
+    then
+        printf 'AUR_PROFILE_FILE_SET=PASS\n'
+    else
+        printf 'AUR_PROFILE_FILE_SET=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    duplicates="$(profile_duplicates "$NATIVE_ROOT")"
+
+    if [[ -z "$duplicates" ]]; then
+        printf 'NATIVE_PROFILE_OVERLAP_NONE=PASS\n'
+    else
+        printf 'NATIVE_PROFILE_OVERLAP_NONE=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    duplicates="$(profile_duplicates "$AUR_ROOT")"
+
+    if [[ -z "$duplicates" ]]; then
+        printf 'AUR_PROFILE_OVERLAP_NONE=PASS\n'
+    else
+        printf 'AUR_PROFILE_OVERLAP_NONE=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    if diff -u \
+        <(entries "$NATIVE_MANIFEST") \
+        <(profile_entries "$NATIVE_ROOT") \
+        >/dev/null
+    then
+        printf 'NATIVE_PROFILE_COVERAGE=PASS\n'
+    else
+        printf 'NATIVE_PROFILE_COVERAGE=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    if diff -u \
+        <(entries "$AUR_MANIFEST") \
+        <(profile_entries "$AUR_ROOT") \
+        >/dev/null
+    then
+        printf 'AUR_PROFILE_COVERAGE=PASS\n'
+    else
+        printf 'AUR_PROFILE_COVERAGE=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    overlap="$(
+        comm -12 \
+            <(entries "$NATIVE_MANIFEST") \
+            <(entries "$AUR_MANIFEST")
+    )"
+
+    if [[ -z "$overlap" ]]; then
+        printf 'NATIVE_AUR_OVERLAP_NONE=PASS\n'
+    else
+        printf 'NATIVE_AUR_OVERLAP_NONE=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    if diff -u \
+        <(printf '%s\n' "$expected_core") \
+        <(entries "$NATIVE_ROOT/core.txt") \
+        >/dev/null
+    then
+        printf 'CORE_PROFILE_EXACT_SET=PASS\n'
+    else
+        printf 'CORE_PROFILE_EXACT_SET=FAIL\n'
+        failures=$((failures + 1))
+    fi
+
+    printf 'NATIVE_CANONICAL_COUNT=%s\n' \
+        "$(count_entries "$NATIVE_MANIFEST")"
+
+    printf 'AUR_CANONICAL_COUNT=%s\n' \
+        "$(count_entries "$AUR_MANIFEST")"
+
+    printf 'CORE_PROFILE_COUNT=%s\n' \
+        "$(count_entries "$NATIVE_ROOT/core.txt")"
+
+    printf 'DOT_DOCTOR_FAILURE_COUNT=%d\n' "$failures"
+
+    if (( failures == 0 )); then
+        printf 'DOT_DOCTOR=PASS\n'
+        return 0
+    fi
+
+    printf 'DOT_DOCTOR=FAIL\n'
+    return 1
+}
+
+status_command() {
+    printf 'DOT_STATUS_MODE=READ_ONLY\n'
+
+    printf 'BRANCH=%s\n' "$(
+        git -C "$DOTFILES_DIR" branch --show-current 2>/dev/null ||
+            printf UNRESOLVED
+    )"
+
+    printf 'HEAD=%s\n' "$(
+        git -C "$DOTFILES_DIR" rev-parse --short HEAD 2>/dev/null ||
+            printf UNRESOLVED
+    )"
+
+    printf 'NATIVE_CANONICAL_COUNT=%s\n' \
+        "$(count_entries "$NATIVE_MANIFEST")"
+
+    printf 'AUR_CANONICAL_COUNT=%s\n' \
+        "$(count_entries "$AUR_MANIFEST")"
+
+    printf 'CORE_PROFILE_COUNT=%s\n' \
+        "$(count_entries "$NATIVE_ROOT/core.txt")"
+
+    printf 'LEGACY_MANIFEST_STATE=COMPATIBILITY_ONLY_NOT_CANONICAL\n'
+    printf 'BOOTSTRAP_STATE=SAFE_DOT_WRAPPER\n'
+    printf 'DOT_IMPLEMENTED_COMMANDS=doctor,status,install,link,rollback,help\n'
+
+    printf 'GIT_STATUS_BEGIN\n'
+    git -C "$DOTFILES_DIR" status --short --branch
+    printf 'GIT_STATUS_END\n'
+
+    printf 'DOT_STATUS=PASS\n'
+}
+
+validate_profile_name() {
+    case "$1" in
+        core|openbox|laptop|dev|display|vpn|live-wallpaper|optional)
+            return 0
+            ;;
+        manual-system|legacy-disabled|manual-bootstrap)
+            printf 'DOT_INSTALL_PROFILE_BLOCKED=%s\n' "$1" >&2
+            return 65
+            ;;
+        *)
+            printf 'DOT_INSTALL_PROFILE_UNKNOWN=%s\n' "$1" >&2
+            return 64
+            ;;
+    esac
+}
+
+resolve_profile() {
+    case "$1" in
+        core)
+            printf '%s\n' core
+            ;;
+        openbox)
+            printf '%s\n' core openbox
+            ;;
+        laptop)
+            printf '%s\n' core laptop
+            ;;
+        dev)
+            printf '%s\n' core dev
+            ;;
+        display)
+            printf '%s\n' core display
+            ;;
+        vpn)
+            printf '%s\n' core vpn
+            ;;
+        live-wallpaper)
+            printf '%s\n' core openbox live-wallpaper
+            ;;
+        optional)
+            printf '%s\n' optional
+            ;;
+    esac
+}
+
+install_command() {
+    local apply=0
+    local include_aur=0
+    local profile
+    local status
+
+    local -a requested=()
+    local -a resolved=()
+    local -a native_packages=()
+    local -a aur_packages=()
+
+    while (( $# > 0 )); do
+        case "$1" in
+            --apply)
+                apply=1
+                ;;
+            --dry-run)
+                apply=0
+                ;;
+            --aur)
+                include_aur=1
+                ;;
+            --help|-h)
+                usage
+                return 0
+                ;;
+            --*)
+                printf 'DOT_INSTALL_OPTION_UNKNOWN=%s\n' "$1" >&2
+                return 64
+                ;;
+            *)
+                requested+=("$1")
+                ;;
+        esac
+
+        shift
+    done
+
+    if (( ${#requested[@]} == 0 )); then
+        printf 'DOT_INSTALL_PROFILE_REQUIRED=YES\n' >&2
+        return 64
+    fi
+
+    # Validation intentionally runs in the parent shell.
+    for profile in "${requested[@]}"; do
+        validate_profile_name "$profile"
+        status=$?
+
+        if (( status != 0 )); then
+            return "$status"
+        fi
+    done
+
+    mapfile -t resolved < <(
+        for profile in "${requested[@]}"; do
+            resolve_profile "$profile"
+        done |
+            sort -u
+    )
+
+    for profile in "${resolved[@]}"; do
+        case "$profile" in
+            laptop)
+                if [[ ! -d /sys/class/power_supply ]]; then
+                    printf 'DOT_INSTALL_HARDWARE_CHECK=laptop:FAIL\n' >&2
+                    return 66
+                fi
+                ;;
+            display)
+                if ! command -v xrandr >/dev/null 2>&1; then
+                    printf 'DOT_INSTALL_DISPLAY_CHECK=FAIL\n' >&2
+                    return 66
+                fi
+                ;;
+            vpn)
+                if [[ ! -d "$HOME/.dotfiles-private" ]]; then
+                    printf 'DOT_INSTALL_PRIVATE_CONFIG_CHECK=FAIL\n' >&2
+                    return 66
+                fi
+                ;;
+        esac
+    done
+
+    mapfile -t native_packages < <(
+        for profile in "${resolved[@]}"; do
+            entries "$NATIVE_ROOT/$profile.txt"
+        done |
+            sort -u
+    )
+
+    if (( include_aur == 1 )); then
+        mapfile -t aur_packages < <(
+            for profile in "${resolved[@]}"; do
+                [[ -f "$AUR_ROOT/$profile.txt" ]] || continue
+                entries "$AUR_ROOT/$profile.txt"
+            done |
+                sort -u
+        )
+    fi
+
+    if (( apply == 1 )); then
+        printf 'DOT_INSTALL_MODE=APPLY\n'
+    else
+        printf 'DOT_INSTALL_MODE=DRY_RUN\n'
+    fi
+
+    printf 'DOT_INSTALL_PROFILES=%s\n' \
+        "$(printf '%s\n' "${resolved[@]}" | paste -sd, -)"
+
+    printf 'DOT_INSTALL_NATIVE_PACKAGE_COUNT=%d\n' \
+        "${#native_packages[@]}"
+
+    printf 'DOT_INSTALL_AUR_PACKAGE_COUNT=%d\n' \
+        "${#aur_packages[@]}"
+
+    printf 'DOT_INSTALL_SERVICE_ACTION=NONE\n'
+    printf 'DOT_INSTALL_PACKAGE_REMOVAL=NONE\n'
+
+    if (( apply == 0 )); then
+        printf 'DOT_INSTALL_ACTION=NONE\n'
+        printf 'DOT_INSTALL=PASS\n'
+        return 0
+    fi
+
+    if (( ${#native_packages[@]} > 0 )); then
+        sudo pacman -S --needed -- "${native_packages[@]}" ||
+            return 1
+    fi
+
+    if (( include_aur == 1 && ${#aur_packages[@]} > 0 )); then
+        if ! command -v yay >/dev/null 2>&1; then
+            printf 'DOT_INSTALL_AUR_HELPER=UNAVAILABLE\n' >&2
+            return 69
+        fi
+
+        yay -S --needed -- "${aur_packages[@]}" ||
+            return 1
+    fi
+
+    printf 'DOT_INSTALL_NATIVE=PASS\n'
+
+    if (( include_aur == 1 )); then
+        printf 'DOT_INSTALL_AUR=PASS\n'
+    else
+        printf 'DOT_INSTALL_AUR=SKIPPED\n'
+    fi
+
+    printf 'DOT_INSTALL=PASS\n'
+}
+
+link_pairs() {
+    printf '%s\t%s\n' \
+        "$HOME/bin" \
+        "$DOTFILES_DIR/bin"
+
+    printf '%s\t%s\n' \
+        "$HOME/.gitconfig" \
+        "$DOTFILES_DIR/git/gitconfig"
+
+    printf '%s\t%s\n' \
+        "$HOME/.config/nvim" \
+        "$DOTFILES_DIR/nvim"
+
+    printf '%s\t%s\n' \
+        "$HOME/.tmux.conf" \
+        "$DOTFILES_DIR/tmux/tmux.conf"
+
+    printf '%s\t%s\n' \
+        "$HOME/.config/alacritty/alacritty.toml" \
+        "$DOTFILES_DIR/alacritty/alacritty.toml"
+
+    printf '%s\t%s\n' \
+        "$HOME/.config/openbox/rc.xml" \
+        "$DOTFILES_DIR/openbox/rc.xml"
+
+    printf '%s\t%s\n' \
+        "$HOME/.config/openbox/autostart" \
+        "$DOTFILES_DIR/openbox/autostart"
+
+    printf '%s\t%s\n' \
+        "$HOME/.config/openbox/environment" \
+        "$DOTFILES_DIR/openbox/environment"
+
+    printf '%s\t%s\n' \
+        "$HOME/.xinitrc" \
+        "$DOTFILES_DIR/openbox/xinitrc"
+}
+
+link_command() {
+    local apply=0
+    local target
+    local source
+    local actual
+    local temporary_state
+
+    local -a created=()
+
+    while (( $# > 0 )); do
+        case "$1" in
+            --apply)
+                apply=1
+                ;;
+            --dry-run)
+                apply=0
+                ;;
+            *)
+                printf 'DOT_LINK_OPTION_UNKNOWN=%s\n' "$1" >&2
+                return 64
+                ;;
+        esac
+
+        shift
+    done
+
+    while IFS=$'\t' read -r target source; do
+        if [[ ! -e "$source" && ! -L "$source" ]]; then
+            printf 'DOT_LINK_SOURCE_MISSING=%s\n' "$source" >&2
+            return 66
+        fi
+
+        if [[ -L "$target" ]]; then
+            actual="$(readlink -f "$target" 2>/dev/null || true)"
+
+            if [[ "$actual" == "$(readlink -f "$source")" ]]; then
+                printf 'DOT_LINK_ALREADY_CORRECT=%s\n' "$target"
+                continue
+            fi
+
+            printf 'DOT_LINK_CONFLICT=%s\n' "$target" >&2
+            return 73
+        fi
+
+        if [[ -e "$target" ]]; then
+            printf 'DOT_LINK_CONFLICT=%s\n' "$target" >&2
+            return 73
+        fi
+
+        printf 'DOT_LINK_PLAN=%s -> %s\n' "$target" "$source"
+    done < <(link_pairs)
+
+    if (( apply == 0 )); then
+        printf 'DOT_LINK_MODE=DRY_RUN\n'
+        printf 'DOT_LINK_ACTION=NONE\n'
+        printf 'DOT_LINK=PASS\n'
+        return 0
+    fi
+
+    mkdir -p "$STATE_ROOT" ||
+        return 1
+
+    temporary_state="$(
+        mktemp "$STATE_ROOT/.last-link.XXXXXX"
+    )" || return 1
+
+    while IFS=$'\t' read -r target source; do
+        if [[ -L "$target" ]] &&
+           [[ "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]
+        then
+            continue
+        fi
+
+        mkdir -p "$(dirname "$target")" || {
+            rm -f -- "$temporary_state"
+            return 1
+        }
+
+        if ! ln -s -- "$source" "$target"; then
+            local created_target
+
+            for created_target in "${created[@]}"; do
+                rm -f -- "$created_target"
+            done
+
+            rm -f -- "$temporary_state"
+            return 1
+        fi
+
+        created+=("$target")
+        printf '%s\t%s\n' "$target" "$source" >>"$temporary_state"
+    done < <(link_pairs)
+
+    if (( ${#created[@]} > 0 )); then
+        if ! mv -- "$temporary_state" "$LINK_STATE"; then
+            local created_target
+
+            for created_target in "${created[@]}"; do
+                rm -f -- "$created_target"
+            done
+
+            rm -f -- "$temporary_state"
+            return 1
+        fi
+    else
+        rm -f -- "$temporary_state"
+    fi
+
+    printf 'DOT_LINK_MODE=APPLY\n'
+    printf 'DOT_LINK_CREATED_COUNT=%d\n' "${#created[@]}"
+    printf 'DOT_LINK_SERVICE_ACTION=NONE\n'
+    printf 'DOT_LINK=PASS\n'
+}
+
+rollback_command() {
+    local apply=0
+    local target
+    local source
+    local actual
+    local count=0
+
+    while (( $# > 0 )); do
+        case "$1" in
+            --apply)
+                apply=1
+                ;;
+            --dry-run)
+                apply=0
+                ;;
+            *)
+                printf 'DOT_ROLLBACK_OPTION_UNKNOWN=%s\n' "$1" >&2
+                return 64
+                ;;
+        esac
+
+        shift
+    done
+
+    if [[ ! -s "$LINK_STATE" ]]; then
+        printf 'DOT_ROLLBACK_STATE=EMPTY\n'
+        printf 'DOT_ROLLBACK_ACTION=NONE\n'
+        printf 'DOT_ROLLBACK=PASS\n'
+        return 0
+    fi
+
+    while IFS=$'\t' read -r target source; do
+        [[ -n "$target" ]] || continue
+
+        if [[ ! -L "$target" ]]; then
+            printf 'DOT_ROLLBACK_TARGET_CHANGED=%s\n' "$target" >&2
+            return 73
+        fi
+
+        actual="$(readlink -f "$target" 2>/dev/null || true)"
+
+        if [[ "$actual" != "$(readlink -f "$source")" ]]; then
+            printf 'DOT_ROLLBACK_TARGET_CHANGED=%s\n' "$target" >&2
+            return 73
+        fi
+
+        printf 'DOT_ROLLBACK_PLAN=%s\n' "$target"
+        count=$((count + 1))
+    done <"$LINK_STATE"
+
+    if (( apply == 0 )); then
+        printf 'DOT_ROLLBACK_MODE=DRY_RUN\n'
+        printf 'DOT_ROLLBACK_TARGET_COUNT=%d\n' "$count"
+        printf 'DOT_ROLLBACK_ACTION=NONE\n'
+        printf 'DOT_ROLLBACK=PASS\n'
+        return 0
+    fi
+
+    while IFS=$'\t' read -r target source; do
+        [[ -n "$target" ]] || continue
+
+        rm -f -- "$target" ||
+            return 1
+    done <"$LINK_STATE"
+
+    mv -- \
+        "$LINK_STATE" \
+        "$LINK_STATE.rolledback-$(date +%Y%m%d-%H%M%S)" ||
+        return 1
+
+    printf 'DOT_ROLLBACK_MODE=APPLY\n'
+    printf 'DOT_ROLLBACK_REMOVED_COUNT=%d\n' "$count"
+    printf 'DOT_ROLLBACK_PACKAGE_ACTION=NONE\n'
+    printf 'DOT_ROLLBACK=PASS\n'
+}
+
+command_name="${1:-help}"
+
+case "$command_name" in
+    doctor)
+        shift
+        doctor "$@"
+        ;;
+    status)
+        shift
+        status_command "$@"
+        ;;
+    install)
+        shift
+        install_command "$@"
+        ;;
+    link)
+        shift
+        link_command "$@"
+        ;;
+    rollback)
+        shift
+        rollback_command "$@"
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    update|clean|sync)
+        printf 'DOT_COMMAND_NOT_IMPLEMENTED=%s\n' "$command_name"
+        printf 'DOT_COMMAND_ACTION=NONE\n'
+        exit 69
+        ;;
+    *)
+        printf 'DOT_COMMAND_UNKNOWN=%s\n' "$command_name" >&2
+        usage >&2
+        exit 64
+        ;;
+esac

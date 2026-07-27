@@ -1,176 +1,373 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-# ASUS E1404F / Arch
-# CPU: governor + amd-pstate-epp (EPP)
-# Battery: /sys/class/power_supply/BAT0/charge_control_end_threshold
-#
-# Usage:
-#   sudo tune-laptop.sh                 # interactive
-#   sudo tune-laptop.sh --mode perf --bat 80
-#   sudo tune-laptop.sh --mode save --bat 70
-#   sudo tune-laptop.sh --status
-
-BAT_END="/sys/class/power_supply/BAT0/charge_control_end_threshold"
-
-die() { echo "❌ $*" >&2; exit 1; }
-info(){ echo "ℹ️  $*"; }
-ok()  { echo "✅ $*"; }
-
-require_root() {
-  [[ "${EUID}" -eq 0 ]] || die "Run as root: sudo $0"
-}
+readonly SCRIPT_NAME="${0##*/}"
+readonly POWER_SERVICE="power-profiles-daemon.service"
+readonly STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/tune-laptop"
+readonly ROLLBACK_FILE="$STATE_DIR/previous-profile"
+readonly -a KNOWN_PROFILES=(performance balanced power-saver)
 
 usage() {
-  cat <<'EOF'
-tune-laptop.sh
-  --mode perf|save        CPU mode (perf=performance, save=powersave)
-  --bat 40|50|60|70|80|90|98   Battery end threshold (%)
-  --status                Show status only
-  -h, --help              Help
+    cat <<USAGE
+Usage: $SCRIPT_NAME [COMMAND]
 
-Examples:
-  sudo tune-laptop.sh
-  sudo tune-laptop.sh --mode perf --bat 80
-  sudo tune-laptop.sh --mode save --bat 70
-  sudo tune-laptop.sh --status
-EOF
+Read-only commands:
+  status       Show controller, service, profile, rollback, and battery status.
+               This is the default when no command is supplied.
+
+Explicit change commands:
+  perf         Set profile to performance.
+  balanced     Set profile to balanced.
+  save         Set profile to power-saver.
+  rollback     Restore the previously saved profile.
+
+Other:
+  -h, --help   Show this help and exit successfully.
+
+Safety policy:
+  - Profile changes use powerprofilesctl only.
+  - No direct CPU sysfs writes are performed.
+  - No battery threshold writes are performed.
+  - No services are restarted.
+USAGE
 }
 
-CPU_GOV=""
-EPP=""
-BAT_LIMIT=""
-STATUS_ONLY=0
+runtime_error() {
+    printf 'ERROR=%s\n' "$*" >&2
+    exit 1
+}
 
-parse_args() {
-  while [[ $# -gt 0 ]]; do
+invalid_argument() {
+    printf 'ERROR=INVALID_ARGUMENT\n' >&2
+    usage >&2
+    exit 2
+}
+
+require_command() {
+    local command_name="$1"
+
+    command -v "$command_name" >/dev/null 2>&1 ||
+        runtime_error "REQUIRED_COMMAND_MISSING:$command_name"
+}
+
+require_controller_tools() {
+    require_command powerprofilesctl
+    require_command rg
+}
+
+current_profile() {
+    powerprofilesctl get 2>/dev/null
+}
+
+profiles_listing() {
+    powerprofilesctl list 2>/dev/null
+}
+
+profile_available() {
+    local wanted="$1"
+    local listing
+
+    listing="$(profiles_listing)" || return 1
+
+    printf '%s\n' "$listing" |
+        rg -q "^[[:space:]]*(\\*)?[[:space:]]*${wanted}:"
+}
+
+profile_is_known() {
     case "$1" in
-      --mode)
-        [[ $# -ge 2 ]] || die "--mode needs value"
-        case "$2" in
-          perf) CPU_GOV="performance"; EPP="performance" ;;
-          save) CPU_GOV="powersave";   EPP="power" ;;
-          *) die "Invalid --mode. Use perf|save" ;;
-        esac
-        shift 2
-        ;;
-      --bat)
-        [[ $# -ge 2 ]] || die "--bat needs value"
-        case "$2" in
-          40|50|60|70|80|90|98) BAT_LIMIT="$2" ;;
-          *) die "Invalid --bat. Allowed: 40 50 60 70 80 90 98" ;;
-        esac
-        shift 2
-        ;;
-      --status)
-        STATUS_ONLY=1
-        shift
-        ;;
-      -h|--help)
-        usage; exit 0
-        ;;
-      *)
-        die "Unknown arg: $1 (use --help)"
-        ;;
+        performance | balanced | power-saver)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
     esac
-  done
 }
 
-ask_cpu_mode() {
-  echo "CPU mode?"
-  echo "  A) performance (max responsiveness, higher power)"
-  echo "  B) powersave   (lower power, slower ramp)"
-  read -r -p "Choose [A/B]: " c
-  c="$(echo "$c" | tr '[:upper:]' '[:lower:]')"
-  case "$c" in
-    a) CPU_GOV="performance"; EPP="performance" ;;
-    b) CPU_GOV="powersave";   EPP="power" ;;
-    *) die "Invalid choice. Use A or B." ;;
-  esac
+show_service_state() {
+    if ! command -v systemctl >/dev/null 2>&1; then
+        printf 'POWER_SERVICE_COMMAND=UNAVAILABLE\n'
+        return 0
+    fi
+
+    printf 'POWER_SERVICE_LOAD=%s\n' \
+        "$(systemctl show "$POWER_SERVICE" \
+            --property=LoadState --value 2>/dev/null ||
+            printf 'unknown')"
+
+    printf 'POWER_SERVICE_ENABLED=%s\n' \
+        "$(systemctl show "$POWER_SERVICE" \
+            --property=UnitFileState --value 2>/dev/null ||
+            printf 'unknown')"
+
+    printf 'POWER_SERVICE_ACTIVE=%s\n' \
+        "$(systemctl show "$POWER_SERVICE" \
+            --property=ActiveState --value 2>/dev/null ||
+            printf 'unknown')"
+
+    printf 'POWER_SERVICE_SUB=%s\n' \
+        "$(systemctl show "$POWER_SERVICE" \
+            --property=SubState --value 2>/dev/null ||
+            printf 'unknown')"
 }
 
-ask_battery_limit() {
-  echo "Battery end threshold?"
-  echo "  Options: 40 50 60 70 80 90 98"
-  read -r -p "Choose: " v
-  case "$v" in
-    40|50|60|70|80|90|98) BAT_LIMIT="$v" ;;
-    *) die "Invalid value. Allowed: 40 50 60 70 80 90 98" ;;
-  esac
+show_battery_threshold_status() {
+    local -a threshold_paths=()
+
+    shopt -s nullglob
+    threshold_paths=(
+        /sys/class/power_supply/BAT*/charge_control_end_threshold
+    )
+    shopt -u nullglob
+
+    if ((${#threshold_paths[@]} == 0)); then
+        printf 'BATTERY_THRESHOLD_STATUS=DEFERRED_HARDWARE_UNAVAILABLE\n'
+        return 0
+    fi
+
+    printf 'BATTERY_THRESHOLD_STATUS=AVAILABLE_NOT_MANAGED\n'
+    printf 'BATTERY_THRESHOLD_PATH=%s\n' "${threshold_paths[@]}"
 }
 
-apply_cpu_governor() {
-  info "Setting governor: ${CPU_GOV}"
-  local any=0
-  for f in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
-    [[ -f "$f" ]] || continue
-    echo "${CPU_GOV}" > "$f"
-    any=1
-  done
-  [[ "$any" -eq 1 ]] || die "No scaling_governor exposed."
-  ok "Governor applied."
+show_status() {
+    local current
+    local profile
+
+    printf 'ACTION=STATUS\n'
+    printf 'POWER_PROFILE_CONTROLLER=power-profiles-daemon\n'
+    printf 'DIRECT_CPU_SYSFS_WRITES=DISABLED\n'
+    printf 'SERVICE_RESTARTS=DISABLED\n'
+
+    show_service_state
+
+    if ! command -v powerprofilesctl >/dev/null 2>&1; then
+        printf 'POWERPROFILESCTL=UNAVAILABLE\n'
+        show_battery_threshold_status
+        return 1
+    fi
+
+    printf 'POWERPROFILESCTL=%s\n' "$(command -v powerprofilesctl)"
+
+    if ! command -v rg >/dev/null 2>&1; then
+        printf 'RG=UNAVAILABLE\n'
+        show_battery_threshold_status
+        return 1
+    fi
+
+    printf 'RG=%s\n' "$(command -v rg)"
+
+    current="$(current_profile)" ||
+        runtime_error 'CURRENT_PROFILE_READ_FAILED'
+
+    printf 'CURRENT_POWER_PROFILE=%s\n' "$current"
+
+    for profile in "${KNOWN_PROFILES[@]}"; do
+        if profile_available "$profile"; then
+            printf 'AVAILABLE_POWER_PROFILE=%s\n' "$profile"
+        fi
+    done
+
+    if [[ -r "$ROLLBACK_FILE" ]]; then
+        local saved_profile
+
+        IFS= read -r saved_profile < "$ROLLBACK_FILE" || true
+
+        if profile_is_known "$saved_profile"; then
+            printf 'ROLLBACK_PROFILE_SAVED=%s\n' "$saved_profile"
+        else
+            printf 'ROLLBACK_PROFILE_SAVED=INVALID_STATE\n'
+        fi
+    else
+        printf 'ROLLBACK_PROFILE_SAVED=NONE\n'
+    fi
+
+    show_battery_threshold_status
 }
 
-apply_epp() {
-  info "Setting EPP: ${EPP}"
-  local any=0
-  for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
-    [[ -f "$f" ]] || continue
-    echo "${EPP}" > "$f"
-    any=1
-  done
-  [[ "$any" -eq 1 ]] || die "EPP sysfs not found (amd-pstate-epp missing?)."
-  ok "EPP applied."
+save_rollback_profile() {
+    local profile="$1"
+    local temporary_file
+
+    profile_is_known "$profile" ||
+        runtime_error "ROLLBACK_PROFILE_INVALID:$profile"
+
+    install -d -m 700 -- "$STATE_DIR"
+
+    temporary_file="$(mktemp "$STATE_DIR/.previous-profile.XXXXXX")"
+    chmod 600 -- "$temporary_file"
+    printf '%s\n' "$profile" > "$temporary_file"
+    mv -f -- "$temporary_file" "$ROLLBACK_FILE"
 }
 
-apply_battery_threshold() {
-  [[ -f "$BAT_END" ]] || die "Battery threshold node not found: ${BAT_END}"
-  [[ -w "$BAT_END" ]] || die "Battery threshold node not writable: ${BAT_END}"
+restore_profile_after_failure() {
+    local previous="$1"
+    local observed=''
 
-  info "Setting battery end threshold: ${BAT_LIMIT}%"
-  echo "${BAT_LIMIT}" > "$BAT_END"
-  ok "Battery threshold applied."
+    printf 'AUTOMATIC_ROLLBACK_ATTEMPT=%s\n' "$previous" >&2
+
+    if ! powerprofilesctl set "$previous"; then
+        printf 'AUTOMATIC_ROLLBACK=FAILED_SET\n' >&2
+        return 1
+    fi
+
+    observed="$(current_profile 2>/dev/null || true)"
+
+    if [[ "$observed" != "$previous" ]]; then
+        printf 'AUTOMATIC_ROLLBACK=FAILED_VERIFY:%s\n' \
+            "${observed:-unreadable}" >&2
+        return 1
+    fi
+
+    printf 'AUTOMATIC_ROLLBACK=PASS\n' >&2
 }
 
-reload_services_best_effort() {
-  info "Reloading services (best-effort)..."
-  systemctl restart cpupower.service 2>/dev/null || true
-  systemctl restart tlp.service 2>/dev/null || true
-  systemctl restart power-profiles-daemon.service 2>/dev/null || true
-  ok "Reload attempted."
+set_mapped_profile() {
+    local mode="$1"
+    local target
+    local previous
+    local observed=''
+
+    case "$mode" in
+        perf)
+            target='performance'
+            ;;
+        balanced)
+            target='balanced'
+            ;;
+        save)
+            target='power-saver'
+            ;;
+        *)
+            invalid_argument
+            ;;
+    esac
+
+    require_controller_tools
+
+    profile_available "$target" ||
+        runtime_error "TARGET_PROFILE_UNAVAILABLE:$target"
+
+    previous="$(current_profile)" ||
+        runtime_error 'CURRENT_PROFILE_READ_FAILED'
+
+    profile_is_known "$previous" ||
+        runtime_error "CURRENT_PROFILE_INVALID:$previous"
+
+    printf 'ACTION=SET_PROFILE\n'
+    printf 'REQUESTED_MODE=%s\n' "$mode"
+    printf 'TARGET_POWER_PROFILE=%s\n' "$target"
+    printf 'PREVIOUS_POWER_PROFILE=%s\n' "$previous"
+
+    if [[ "$previous" == "$target" ]]; then
+        printf 'PROFILE_CHANGE=NOOP_ALREADY_ACTIVE\n'
+        show_battery_threshold_status
+        return 0
+    fi
+
+    save_rollback_profile "$previous"
+    printf 'ROLLBACK_PROFILE_SAVED=%s\n' "$previous"
+
+    if ! powerprofilesctl set "$target"; then
+        printf 'PROFILE_CHANGE=FAILED_SET\n' >&2
+        restore_profile_after_failure "$previous" || true
+        exit 1
+    fi
+
+    observed="$(current_profile 2>/dev/null || true)"
+
+    if [[ "$observed" != "$target" ]]; then
+        printf 'PROFILE_CHANGE=FAILED_VERIFY:%s\n' \
+            "${observed:-unreadable}" >&2
+        restore_profile_after_failure "$previous" || true
+        exit 1
+    fi
+
+    printf 'CURRENT_POWER_PROFILE=%s\n' "$observed"
+    printf 'PROFILE_CHANGE=PASS\n'
+    show_battery_threshold_status
 }
 
-status() {
-  echo
-  info "STATUS"
-  echo -n "  driver:   "; cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver 2>/dev/null || echo "N/A"
-  echo -n "  governor: "; cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null || echo "N/A"
-  echo -n "  epp:      "; cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || echo "N/A"
-  echo -n "  bat_end:  "; cat "$BAT_END" 2>/dev/null || echo "N/A"
-  echo
+rollback_profile() {
+    local target
+    local previous
+    local observed=''
+
+    require_controller_tools
+
+    [[ -r "$ROLLBACK_FILE" ]] ||
+        runtime_error 'ROLLBACK_STATE_UNAVAILABLE'
+
+    IFS= read -r target < "$ROLLBACK_FILE" ||
+        runtime_error 'ROLLBACK_STATE_READ_FAILED'
+
+    profile_is_known "$target" ||
+        runtime_error "ROLLBACK_STATE_INVALID:$target"
+
+    profile_available "$target" ||
+        runtime_error "ROLLBACK_PROFILE_UNAVAILABLE:$target"
+
+    previous="$(current_profile)" ||
+        runtime_error 'CURRENT_PROFILE_READ_FAILED'
+
+    profile_is_known "$previous" ||
+        runtime_error "CURRENT_PROFILE_INVALID:$previous"
+
+    printf 'ACTION=ROLLBACK_PROFILE\n'
+    printf 'ROLLBACK_TARGET_PROFILE=%s\n' "$target"
+    printf 'PREVIOUS_POWER_PROFILE=%s\n' "$previous"
+
+    if [[ "$previous" == "$target" ]]; then
+        printf 'PROFILE_ROLLBACK=NOOP_ALREADY_ACTIVE\n'
+        show_battery_threshold_status
+        return 0
+    fi
+
+    if ! powerprofilesctl set "$target"; then
+        printf 'PROFILE_ROLLBACK=FAILED_SET\n' >&2
+        restore_profile_after_failure "$previous" || true
+        exit 1
+    fi
+
+    observed="$(current_profile 2>/dev/null || true)"
+
+    if [[ "$observed" != "$target" ]]; then
+        printf 'PROFILE_ROLLBACK=FAILED_VERIFY:%s\n' \
+            "${observed:-unreadable}" >&2
+        restore_profile_after_failure "$previous" || true
+        exit 1
+    fi
+
+    save_rollback_profile "$previous"
+
+    printf 'ROLLBACK_PROFILE_SAVED=%s\n' "$previous"
+    printf 'CURRENT_POWER_PROFILE=%s\n' "$observed"
+    printf 'PROFILE_ROLLBACK=PASS\n'
+
+    show_battery_threshold_status
 }
 
 main() {
-  parse_args "$@"
+    if (($# > 1)); then
+        invalid_argument
+    fi
 
-  if [[ "$STATUS_ONLY" -eq 1 ]]; then
-    status
-    exit 0
-  fi
-
-  require_root
-
-  # If not provided via args, go interactive
-  [[ -n "${CPU_GOV}" && -n "${EPP}" ]] || ask_cpu_mode
-  [[ -n "${BAT_LIMIT}" ]] || ask_battery_limit
-
-  echo
-  apply_cpu_governor
-  apply_epp
-  apply_battery_threshold
-  reload_services_best_effort
-  status
-  ok "Done."
+    case "${1:-status}" in
+        status)
+            show_status
+            ;;
+        perf | balanced | save)
+            set_mapped_profile "$1"
+            ;;
+        rollback)
+            rollback_profile
+            ;;
+        -h | --help)
+            usage
+            ;;
+        *)
+            invalid_argument
+            ;;
+    esac
 }
 
 main "$@"

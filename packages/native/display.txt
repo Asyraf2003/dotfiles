@@ -1,0 +1,8 @@
+ddcutil
+libva-utils
+mesa-utils
+nvtop
+vulkan-tools
+xfce4-screenshooter
+xorg-xrandr
+xorg-xrefresh

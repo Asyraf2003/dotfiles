@@ -2,4 +2,3 @@
 systemctl --user start pipewire wireplumber pipewire-pulse
 export XDG_CURRENT_DESKTOP=GNOME
 sleep 1 && /usr/lib/xdg-desktop-portal-gtk &
-$HOME/.local/bin/livewp 2 &

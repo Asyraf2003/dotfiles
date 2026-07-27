@@ -1,0 +1,5 @@
+[user]
+	name = Asyraf2003
+	email = asyrafmubarak738@gmail.com
+[include]
+	path = ~/.config/git/local.gitconfig

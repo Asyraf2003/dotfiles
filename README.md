@@ -1,96 +1,137 @@
-# 💻 Asyraf’s Minimalist Dev-Ops Dotfiles
+# Asyraf Arch Linux Dotfiles
 
-Welcome to my personal **Arch Linux dotfiles** — a fast, keyboard-driven, and fully minimalist setup built for developers who value control and speed.
+Dotfiles publik untuk lingkungan Arch Linux minimal berbasis Openbox.
 
-If you love the terminal, shortcuts, and zero bloat, this setup is for you.
+Repository ini menyimpan konfigurasi yang aman dipublikasikan dan dapat
+digunakan kembali saat setup PC. Credential, key, session, cache, serta
+konfigurasi private tetap berada di luar repository ini.
 
----
+## Komponen
 
-## 🚀 Philosophy
+- Bash
+- Git
+- Openbox
+- Alacritty
+- Neovim
+- tmux
+- script maintenance dan laptop
+- package profiles
+- command `dot`
+- bootstrap wrapper
 
-Keep everything **light, fast, and distraction-free**.
+## Command Dot
 
-- **Keyboard-centric:** 100% controlled via Openbox keybinds and scripts in `~/bin`
-- **Zero-bloat:** only essential packages installed
-- **Instant:** every app loads in milliseconds
+```text
+dot doctor
+dot status
+dot install [--dry-run|--apply] [--aur] PROFILE...
+dot link [--dry-run|--apply]
+dot rollback [--dry-run|--apply]
+dot help
+```
 
----
+Operasi yang dapat mengubah sistem menggunakan dry-run secara default.
 
-## ⚙️ Core Components
+## Package Profiles
 
-| Component | Description |
-|------------|--------------|
-| **WM:** Openbox | Lightweight and fully customizable window manager |
-| **Terminal:** Alacritty | GPU-accelerated and ultra-fast |
-| **Shell:** Bash | Clean aliases, functions, and colorized prompt |
-| **Scripts:** `~/bin` | Custom CLI tools (Wi-Fi, VPN, system, etc.) |
+Profile yang dapat digunakan:
 
----
+```text
+core
+openbox
+laptop
+dev
+display
+vpn
+live-wallpaper
+optional
+```
 
-## ⌨️ Key Features
+Profile berikut tidak dijalankan otomatis:
 
-- Fast keyboard navigation  
-- Instant app launch with Openbox keybinds  
-- Clean dark theme  
-- Fully terminal-based workflow  
-- Custom scripts for Wi-Fi, VPN, Bluetooth, and MariaDB  
-- Auto-symlink installer for quick setup  
+```text
+manual-system
+legacy-disabled
+manual-bootstrap
+```
 
----
+AUR hanya diproses ketika `--aur` digunakan secara eksplisit.
 
-## 🧰 Custom Commands
+## Bootstrap
 
-| Command | Description |
-|----------|--------------|
-| `vpn on/off/status` | Manage ProtonVPN (WireGuard) |
-| `wifi on/off/connect` | Control Wi-Fi via `nmcli` |
-| `bt on/off/connect` | Bluetooth management |
-| `mariastart/stop` | Start or stop MariaDB services |
-| `update` | System update (`sudo pacman -Syu`) |
-| `cleanpkg` | Clean package cache |
-| `helpme` | Display all aliases & keybinds |
+`bootstrap.sh` adalah wrapper untuk `bin/dot`.
 
----
+Default:
 
-## ⚡ Quick Setup
+```text
+dry-run core
+```
 
-# 1. Clone the repository
-git clone https://github.com/Asyraf2003/dotfiles.git ~/dotfiles
+Contoh:
 
-# 2. Install packages
-sudo pacman -S --needed - < ~/dotfiles/pkglist_pacman.txt
-yay -S --needed - < ~/dotfiles/pkglist_aur.txt
+```bash
+./bootstrap.sh
+./bootstrap.sh --dry-run core
+./bootstrap.sh --apply core
+```
 
-# 3. Create symlinks
-ln -s ~/dotfiles/.bashrc ~/.bashrc
-ln -s ~/dotfiles/openbox ~/.config/openbox
-ln -s ~/dotfiles/alacritty ~/.config/alacritty
-ln -s ~/dotfiles/bin ~/bin
+Bootstrap tidak mengaktifkan service secara otomatis.
 
-# 4. Reboot
-systemctl reboot
+## Setup Awal
 
----
+```bash
+git clone <URL_REPOSITORY_PUBLIC> ~/.dotfiles
+cd ~/.dotfiles
 
-## 📸 Screenshots
+bin/dot doctor
+bin/dot status
+bin/dot install core
+bin/dot link
+```
 
-🎥 [Watch Live Wallpaper Preview (5 s)](https://github.com/Asyraf2003/dotfiles/raw/main/images/livewall_preview.mp4)
+Periksa hasil dry-run sebelum menggunakan `--apply`.
 
-> 🖼️ **Desktop:** Minimalist Openbox environment — no panels, no icons, only a subtle live wallpaper running via `xwinwrap + mpv`.
+## Private Overlay
 
-![HTOP](images/htop.png)
-> 💻 **System Resource:** Idle system using ~300 MB RAM — clean, efficient, and blazing fast.
+Konfigurasi private dapat dimuat dari:
 
-![Helpme](images/helpme.png)
-> ⌨️ **Keybind Overview:** Every system function is bound to a single key — total keyboard control.
+```text
+~/.dotfiles-private/shell/private.bash
+```
 
----
+Repository publik hanya mengecek atau melakukan source terhadap path tersebut.
+Isi private overlay tidak disimpan atau dicetak oleh repository publik.
 
-## 💡 Notes
+Data berikut harus tetap lokal:
 
-This setup is built to be:
-- Blazing fast ⚡  
-- Keyboard-first 🧠  
-- Fully scriptable 🔧  
+- password dan token;
+- SSH dan GPG keys;
+- OAuth dan credential aplikasi;
+- WireGuard private key;
+- shell history dan session;
+- cache dan data runtime.
 
-Ideal for developers who live inside the terminal.
+## Dokumentasi
+
+- `MIGRATION_STATUS.md`: status dan bukti migrasi.
+- `SHORTCUTS.md`: shortcut dan command aktif.
+- `packages/PROFILE_POLICY.md`: aturan package profile.
+- `packages/CORE_DECISION.md`: keputusan profile core.
+- `README.next.md`: draft historis migrasi.
+- `CHANGELOG.md`: catatan historis.
+
+## Aturan Repository
+
+Sebelum commit:
+
+```bash
+bin/dot doctor
+git diff --check
+git status --short --branch
+git diff --stat
+```
+
+Backup lokal seperti `.pre-*` dan `.structure-backup` bukan output publik dan
+tidak boleh ikut commit.
+
+Commit dan push hanya dilakukan setelah review dan persetujuan eksplisit.

@@ -1,0 +1,8 @@
+dmenu
+dunst
+greetd
+greetd-tuigreet
+lightdm
+lightdm-gtk-greeter
+picom
+tint2

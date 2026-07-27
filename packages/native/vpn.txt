@@ -1,0 +1,5 @@
+bind
+easy-rsa
+openresolv
+openvpn
+wireguard-tools

@@ -1,0 +1,3 @@
+android-sdk
+android-sdk-cmdline-tools-latest
+ngrok

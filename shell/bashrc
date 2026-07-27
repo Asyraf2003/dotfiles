@@ -1,0 +1,40 @@
+# Portable interactive Bash entry point managed by dotfiles.
+
+case $- in
+    *i*) ;;
+    *) return ;;
+esac
+
+DOTFILES_PUBLIC_ROOT="${DOTFILES_PUBLIC_ROOT:-$HOME/.dotfiles}"
+DOTFILES_BASH_ENABLED_DIR="${DOTFILES_BASH_ENABLED_DIR:-$HOME/.config/dotfiles/bash.d}"
+
+core_module="$DOTFILES_PUBLIC_ROOT/shell/bash.d/core.bash"
+
+if [[ -r "$core_module" ]]; then
+    # shellcheck source=/dev/null
+    source "$core_module"
+else
+    printf 'dotfiles: core Bash module tidak ditemukan: %s\n' \
+        "$core_module" >&2
+fi
+
+# Installer nantinya menaruh symlink modul profil terpilih di direktori ini.
+if [[ -d "$DOTFILES_BASH_ENABLED_DIR" ]]; then
+    for module in "$DOTFILES_BASH_ENABLED_DIR"/*.bash; do
+        [[ -e "$module" ]] || continue
+        [[ -r "$module" ]] || continue
+
+        # shellcheck source=/dev/null
+        source "$module"
+    done
+fi
+
+private_module="$HOME/.dotfiles-private/shell/private.bash"
+
+if [[ -r "$private_module" ]]; then
+    # shellcheck source=/dev/null
+    source "$private_module"
+fi
+
+unset core_module module private_module
+unset -f _dotfiles_path_prepend 2>/dev/null || true

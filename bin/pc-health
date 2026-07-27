@@ -1,20 +1,204 @@
-#!/bin/bash
-# 🩺 Simple system health summary for Asyraf
+#!/usr/bin/env bash
 
-echo "🧠 Memory usage:"
-free -h | awk '/Mem:/ {print "  Used:", $3 " / " $2, " |  Free:", $4}'
+set -uo pipefail
 
-echo
-echo "💾 Storage usage:"
-df -h / | awk 'NR==2 {print "  Root:", $3 " used of " $2 " (" $5 ")"}'
+read_nvme=1
+failures=0
 
-if command -v nvme &>/dev/null; then
-  # ambil nilai Kelvin dan konversi ke Celsius
-  TEMP_K=$(sudo nvme smart-log /dev/nvme0n1 | grep -m1 "temperature" | grep -o '[0-9]\{3\} K' | awk '{print $1}')
-  TEMP_C=$(awk "BEGIN {printf \"%.0f\", $TEMP_K - 273.15}")
-  USE=$(sudo nvme smart-log /dev/nvme0n1 | grep -m1 "percentage_used" | awk '{print $3}')
+usage() {
+    cat <<'EOF'
+Usage:
+  pc-health
+  pc-health --no-nvme
+  pc-health --help
 
-  echo
-  echo "⚙️  NVMe Health:"
-  echo "  Temp: ${TEMP_C} °C  |  Used: ${USE}%"
+Options:
+  --no-nvme  Skip the privileged, read-only NVMe SMART query.
+  --help     Show this help.
+
+The command never changes power settings, services, filesystems, or devices.
+EOF
+}
+
+resolve_root_disk() {
+    local current=""
+    local parent=""
+
+    current="$(findmnt -no SOURCE / 2>/dev/null || true)"
+
+    [[ -n "$current" ]] || return 1
+
+    while :; do
+        parent="$(
+            lsblk -ndo PKNAME "$current" 2>/dev/null |
+                head -n 1
+        )"
+
+        [[ -n "$parent" ]] || break
+        current="/dev/$parent"
+    done
+
+    printf '%s\n' "$current"
+}
+
+show_memory() {
+    printf '===== MEMORY =====\n'
+
+    free -h |
+        awk '
+            /^Mem:/ {
+                printf "MEMORY_TOTAL=%s\n", $2
+                printf "MEMORY_USED=%s\n", $3
+                printf "MEMORY_AVAILABLE=%s\n", $7
+            }
+            /^Swap:/ {
+                printf "SWAP_TOTAL=%s\n", $2
+                printf "SWAP_USED=%s\n", $3
+            }
+        '
+}
+
+show_storage() {
+    local root_source=""
+    local root_disk=""
+
+    root_source="$(findmnt -no SOURCE / 2>/dev/null || true)"
+    root_disk="$(resolve_root_disk 2>/dev/null || true)"
+
+    printf '\n===== ROOT STORAGE =====\n'
+    printf 'ROOT_SOURCE=%s\n' "${root_source:-unknown}"
+    printf 'ROOT_DISK=%s\n' "${root_disk:-unknown}"
+
+    df -hT / |
+        awk '
+            NR == 2 {
+                printf "ROOT_FILESYSTEM=%s\n", $2
+                printf "ROOT_SIZE=%s\n", $3
+                printf "ROOT_USED=%s\n", $4
+                printf "ROOT_AVAILABLE=%s\n", $5
+                printf "ROOT_USE_PERCENT=%s\n", $6
+            }
+        '
+}
+
+show_nvme() {
+    local root_disk=""
+    local smart_json=""
+    local temperature_raw=""
+    local temperature_c=""
+    local percent_used=""
+
+    printf '\n===== NVME HEALTH =====\n'
+
+    if ! command -v nvme >/dev/null 2>&1; then
+        printf 'NVME_STATUS=SKIPPED_COMMAND_ABSENT\n'
+        return 0
+    fi
+
+    root_disk="$(resolve_root_disk 2>/dev/null || true)"
+
+    if [[ ! "$root_disk" =~ ^/dev/nvme[0-9]+n[0-9]+$ ]] ||
+       [[ ! -b "$root_disk" ]]; then
+        printf 'NVME_STATUS=SKIPPED_ROOT_NOT_NVME\n'
+        printf 'NVME_DEVICE=%s\n' "${root_disk:-unknown}"
+        return 0
+    fi
+
+    printf 'NVME_DEVICE=%s\n' "$root_disk"
+
+    if ! sudo -v; then
+        printf 'NVME_SMART_READ=FAIL reason=sudo-authentication\n' >&2
+        return 1
+    fi
+
+    if ! smart_json="$(
+        sudo nvme smart-log "$root_disk" -o json 2>/dev/null
+    )"; then
+        printf 'NVME_SMART_READ=FAIL reason=nvme-command\n' >&2
+        return 1
+    fi
+
+    printf 'NVME_SMART_READ=PASS\n'
+
+    temperature_raw="$(
+        printf '%s\n' "$smart_json" |
+            sed -nE '
+                s/^[[:space:]]*"temperature"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p
+            ' |
+            head -n 1
+    )"
+
+    percent_used="$(
+        printf '%s\n' "$smart_json" |
+            sed -nE '
+                s/^[[:space:]]*"percent_used"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p
+            ' |
+            head -n 1
+    )"
+
+    if [[ -z "$percent_used" ]]; then
+        percent_used="$(
+            printf '%s\n' "$smart_json" |
+                sed -nE '
+                    s/^[[:space:]]*"percentage_used"[[:space:]]*:[[:space:]]*([0-9]+).*/\1/p
+                ' |
+                head -n 1
+        )"
+    fi
+
+    if [[ "$temperature_raw" =~ ^[0-9]+$ ]]; then
+        temperature_c="$(
+            awk -v temperature="$temperature_raw" '
+                BEGIN {
+                    if (temperature > 200) {
+                        printf "%.0f", temperature - 273.15
+                    } else {
+                        printf "%.0f", temperature
+                    }
+                }
+            '
+        )"
+
+        printf 'NVME_TEMPERATURE_C=%s\n' "$temperature_c"
+    else
+        printf 'NVME_TEMPERATURE=UNAVAILABLE\n'
+        ((failures += 1))
+    fi
+
+    if [[ "$percent_used" =~ ^[0-9]+$ ]]; then
+        printf 'NVME_PERCENT_USED=%s\n' "$percent_used"
+    else
+        printf 'NVME_PERCENT_USED=UNAVAILABLE\n'
+        ((failures += 1))
+    fi
+}
+
+while (($# > 0)); do
+    case "$1" in
+        --no-nvme)
+            read_nvme=0
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            printf 'ARGUMENT_VALIDATION=FAIL option=%s\n' "$1" >&2
+            exit 2
+            ;;
+    esac
+
+    shift
+done
+
+show_memory
+show_storage
+
+if ((read_nvme == 1)); then
+    show_nvme || ((failures += 1))
+else
+    printf '\nNVME_STATUS=SKIPPED_BY_REQUEST\n'
 fi
+
+printf '\nFAILURE_COUNT=%s\n' "$failures"
+((failures == 0))

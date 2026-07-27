@@ -1,0 +1,6 @@
+# Load the interactive Bash configuration once for login shells.
+
+if [[ -r "$HOME/.bashrc" ]]; then
+    # shellcheck source=/dev/null
+    source "$HOME/.bashrc"
+fi

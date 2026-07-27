@@ -134,7 +134,13 @@ vpn_on() {
 vpn_off() {
   echo "[+] Mematikan ProtonVPN..."
   if is_up; then
-    sudo wg-quick down "$IFACE" || true
+    local down_target="$IFACE"
+
+    if [[ -f "/run/wireguard/${IFACE}.conf" ]]; then
+      down_target="/run/wireguard/${IFACE}.conf"
+    fi
+
+    sudo wg-quick down "$down_target"
   else
     echo "[i] $IFACE sudah non-aktif; skip wg-quick down."
     sudo ip link del dev "$IFACE" 2>/dev/null || true

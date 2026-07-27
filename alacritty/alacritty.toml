@@ -1,9 +1,23 @@
-[scrolling]
-history = 2000
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\u001B\r"
 
-[general]
-live_config_reload = true
+[font]
+size = 6.0
 
-[terminal.shell]
-program = "/bin/bash"
-args = ["-lc", "clear; printf '\\e[1;36m%s\\e[0m\\n\\n' \"$(date '+%A, %d %B %Y — %H:%M:%S')\"; exec bash"]
+[font.normal]
+family = "JetBrainsMono NF"
+style = "Regular"
+
+[font.bold]
+family = "JetBrainsMono Nerd Font"
+style = "Bold"
+
+[font.italic]
+family = "JetBrainsMono Nerd Font"
+style = "Italic"
+
+[font.bold_italic]
+family = "JetBrainsMono Nerd Font"
+style = "Bold Italic"

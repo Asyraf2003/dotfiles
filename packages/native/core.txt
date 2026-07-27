@@ -1,0 +1,13 @@
+bash-completion
+bat
+fastfetch
+fd
+fzf
+git
+less
+neovim
+networkmanager
+pacman-contrib
+ripgrep
+tmux
+zoxide

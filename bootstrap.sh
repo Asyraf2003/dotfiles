@@ -1,31 +1,82 @@
-#!/bin/bash
-install_packages() {
-    echo "[*] Installing pacman packages..."
-    sudo pacman -S --needed - < pkglist_pacman_repo.txt
-}
-create_symlinks() {
-    echo "[*] Creating symlinks for config..."
+#!/usr/bin/env bash
 
-    # Openbox
-    ln -sf "$HOME/.dotfiles/.config/openbox" "$HOME/.config/openbox"
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/.dotfiles}"
+DOT="${DOT_COMMAND:-$DOTFILES_DIR/bin/dot}"
 
-    # Thunar
-    ln -sf "$HOME/.dotfiles/.config/Thunar" "$HOME/.config/Thunar"
+mode="--dry-run"
+include_aur=0
+profiles=()
 
-    # GTK 3
-# disabled (no gtk-3.0 tracked):     ln -sf "$HOME/.dotfiles/.config/gtk-3.0" "$HOME/.config/gtk-3.0"
-}
-enable_docker() {
-    echo "[*] Enabling Docker service..."
-    sudo systemctl enable --now docker.service
-    sudo systemctl enable --now containerd.service
-}
-bootstrap() {
-    echo "[*] Running full bootstrap..."
-    install_packages
-    create_symlinks
-    # disabled: docker excluded from dotfiles bootstrap
-    echo "[*] Bootstrap completed."
+usage() {
+    cat <<'EOF'
+Usage:
+  ./bootstrap.sh [--dry-run|--apply] [--aur] [PROFILE...]
+
+Default:
+  dry-run core
+
+No service is activated automatically.
+EOF
 }
 
-bootstrap
+while (( $# > 0 )); do
+    case "$1" in
+        --apply)
+            mode="--apply"
+            ;;
+        --dry-run)
+            mode="--dry-run"
+            ;;
+        --aur)
+            include_aur=1
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --*)
+            printf 'BOOTSTRAP_OPTION_UNKNOWN=%s\n' "$1" >&2
+            exit 64
+            ;;
+        *)
+            profiles+=("$1")
+            ;;
+    esac
+
+    shift
+done
+
+if (( ${#profiles[@]} == 0 )); then
+    profiles=(core)
+fi
+
+if [[ ! -x "$DOT" ]]; then
+    printf 'BOOTSTRAP_DOT_COMMAND=UNAVAILABLE path=%s\n' "$DOT" >&2
+    exit 69
+fi
+
+"$DOT" doctor || exit $?
+
+arguments=("$mode")
+
+if (( include_aur == 1 )); then
+    arguments+=(--aur)
+fi
+
+"$DOT" install "${arguments[@]}" "${profiles[@]}" ||
+    exit $?
+
+"$DOT" link "$mode" ||
+    exit $?
+
+if [[ "$mode" == "--apply" ]]; then
+    printf 'BOOTSTRAP_MODE=APPLY\n'
+else
+    printf 'BOOTSTRAP_MODE=DRY_RUN\n'
+fi
+
+printf 'BOOTSTRAP_PROFILES=%s\n' \
+    "$(printf '%s\n' "${profiles[@]}" | paste -sd, -)"
+
+printf 'BOOTSTRAP_SERVICE_ACTION=NONE\n'
+printf 'BOOTSTRAP=PASS\n'

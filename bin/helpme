@@ -1,131 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ===== Meta =====
-me="${BASH_SOURCE[0]:-$0}"
-# Ambil mtime file sebagai "Last Updated"
-if LAST_RAW=$(stat -c '%y' "$me" 2>/dev/null); then
-  LAST_UPDATED="$(date -d "$LAST_RAW" '+%Y-%m-%d %H:%M:%S %Z' 2>/dev/null || echo "$LAST_RAW")"
-else
-  LAST_UPDATED="$(date '+%Y-%m-%d %H:%M:%S %Z')"
+dotfiles_root="${DOTFILES_PUBLIC_ROOT:-$HOME/.dotfiles}"
+document="$dotfiles_root/SHORTCUTS.md"
+
+if [[ ! -r "$document" ]]; then
+    printf 'helpme: dokumentasi tidak ditemukan: %s\n' "$document" >&2
+    exit 1
 fi
-NOW="$(date '+%Y-%m-%d %H:%M:%S %Z')"
 
-# ===== Konten Gabungan (System Notes + Shortcuts) =====
-build_content() {
-cat <<'DOC'
+if command -v glow >/dev/null 2>&1; then
+    exec glow "$document"
+fi
 
-## 🌐 Network Notes
-- Wi-Fi Interface: **wlp2s0**
-- Gateway: **192.168.8.1**
-- DNS default: **8.8.8.8**, **1.1.1.1**
-- IPv6: **disabled**
+if command -v bat >/dev/null 2>&1; then
+    exec bat \
+        --language=md \
+        --style=plain \
+        --paging=always \
+        "$document"
+fi
 
-## 🔒 WireGuard
-File: `/etc/wireguard/asyraf.conf`
-- `Address = 10.2.0.2/32`
-- `AllowedIPs = 0.0.0.0/0`
-- `Endpoint = 185.177.125.13:51820`
-- `PersistentKeepalive = 25`
+if command -v less >/dev/null 2>&1; then
+    exec less "$document"
+fi
 
-## 📜 Shortcuts (gabungan)
-
-====== Terminal & Scripts ======
-vpn on            : Aktifkan ProtonVPN (WireGuard, DNS aman)
-vpn off           : Matikan ProtonVPN & pulihkan DNS
-vpn test          : Uji Jaringan
-vpn status        : Untuk tau DNS saat ini diserver apa
-vpn restart       : Matikan dan hidupkan VPN kembali
-bt on/off         : Nyalakan atau matikan Bluetooth
-bt status         : Cek status adapter & perangkat
-bt scan [sec]     : Scan perangkat Bluetooth (default 10 detik)
-bt paired         : Tampilkan perangkat yang sudah dipair
-bt devices        : Tampilkan semua perangkat yang pernah terlihat
-bt connect MAC    : Hubungkan ke perangkat Bluetooth
-bt disconnect MAC : Putuskan koneksi perangkat
-bt pair MAC       : Pair perangkat baru
-bt trust MAC      : Tandai perangkat agar auto connect
-bt remove MAC     : Lupakan perangkat
-bt info MAC       : Lihat info detail perangkat
-
-wifi on/off       : Aktif/nonaktif Wi-Fi
-wifi status       : Lihat status koneksi Wi-Fi
-wifi scan/list    : Scan atau tampilkan SSID di sekitar
-wifi connect "SSID" [PASS] : Sambung ke jaringan Wi-Fi
-wifi disconnect   : Putus koneksi aktif
-wifi saved        : Lihat daftar jaringan tersimpan
-wifi delete "SSID": Hapus profil tersimpan
-wifi ip           : Lihat IP Wi-Fi saat ini
-speedtest         : Cek kecepatan internet
-
-bat               : Cek status baterai
-helpme            : Tampilkan catatan ini
-pc-health         : Cek kondisi PC(memory, storage, nvme)
-clean-system      : Bersihkan cache system dan package manager
-
-====== Openbox Shortcuts ======
-W+Return          : Buka Terminal (Alacritty)
-W+b               : Buka Brave Browser
-W+v               : Buka VS Code
-W+s               : Buka Spotify
-W+c               : Buka Kamera (Cheese)
-W+o               : Buka OBS Studio
-W+w               : Buka WhatsApp Desktop
-W+t               : Buka Telegram Desktop
-W+f               : Buka File Manager (Thunar)
-W+q               : Matikan komputer (poweroff)
-W+S+q             : Suspen komputer
-W+r               : Restart (reboot)
-W+d               : Tampilkan desktop
-A+F4              : Tutup jendela aktif
-A+Space           : Buka menu jendela
-A+Tab/A+S+Tab     : Pindah antar jendela
-Ctrl+A+Arrow      : Pindah antar desktop
-S+A+Arrow         : Kirim jendela ke desktop lain
-W+Arrow           : Geser jendela setengah layar
-W+S+Arrow         : Geser jendela ke pojok layar
-Print             : Screenshot penuh
-A+Print           : Screenshot jendela
-S+Print           : Screenshot area
-
-====== Network Info ======
-Interface Wi-Fi   : wlp2s0
-Gateway           : 192.168.8.1
-DNS Default       : 8.8.8.8, 1.1.1.1
-IPv6              : disabled
-
-====== Catatan ======
-ping 192.168.8.1  : Tes koneksi ke router
-curl ifconfig.me  : Lihat IP publik
-sudo wg           : Cek status VPN aktif
-
-====== Wallpaper ======
-
-====== Maria Sql ======
-mariastart : Jalankan mysql dan phpmyadmin
-mariastop  : Matikan mysql dan phpmyadmin
-DOC
-}
-
-# ===== Render =====
-render_markdown() {
-  if command -v glow >/dev/null 2>&1; then
-    glow -
-  elif command -v bat >/dev/null 2>&1; then
-    bat --language=md --style=plain --paging=never
-  else
-    cat
-  fi
-}
-
-# ===== Output =====
-{
-  echo "===================="
-  echo "📘 HELPME — Asyraf"
-  echo "Generated: $NOW"
-  echo "Last Updated (file): $LAST_UPDATED"
-  echo "Path: $me"
-  echo "===================="
-  echo
-  build_content
-} 
+exec cat "$document"
