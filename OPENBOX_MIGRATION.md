@@ -1,23 +1,25 @@
 # Openbox Migration
 
-## Goal
+## Primary Goal
 
-Migrate the primary desktop session from Hyprland to raw Openbox while preserving the workflows and hardware functions that are actually useful.
+Migrate the Zenbook primary desktop session from Hyprland to raw Openbox while preserving the workflows and hardware functions that are actually useful.
 
-### Required final state
+Openbox is the target. Hyprland is only a temporary fallback and reference source during migration.
 
-- Raw Openbox as the primary desktop.
-- No wallpaper, panel, compositor, or decorative desktop component unless explicitly added later.
-- F8 emoji functionality remains available.
-- Other required Fn/Fx hardware keys remain functional.
-- Existing important SUPER+... application shortcuts are migrated to Openbox.
-- Login, sudo, and other password authentication should eventually support Zenbook camera-based face verification.
-- Microphone and speakers work correctly.
-- Connectivity functions work correctly, including Wi-Fi and Bluetooth.
-- Thunar works fully, including required right-click/context-menu integrations.
-- Hyprland remains installed as fallback until the Openbox migration is fully PASS.
+## Required Final State
 
-## Current proven state
+1. Raw Openbox is the primary desktop.
+2. No wallpaper, panel, compositor, dock, or decorative layer unless explicitly decided later.
+3. F8 emoji functionality remains available.
+4. Other required Fn/Fx hardware keys remain functional.
+5. Existing important `SUPER + ...` application shortcuts are migrated to Openbox.
+6. Login, sudo, and other PAM/password authentication should support Zenbook camera-based face verification.
+7. Microphone and speakers work correctly.
+8. Connectivity works correctly, especially Wi-Fi and Bluetooth.
+9. Thunar works fully, including required right-click/context-menu integrations.
+10. Hyprland is removed only after every required Openbox target above is validated PASS.
+
+## Current Proven State
 
 - Openbox 3.6.1 installed.
 - Xorg and xorg-xinit installed.
@@ -26,21 +28,236 @@ Migrate the primary desktop session from Hyprland to raw Openbox while preservin
 - Openbox raw session successfully starts.
 - Live Openbox config was reset to the standard package baseline from `/etc/xdg/openbox/`.
 - Touchpad tap-to-click works through `/etc/X11/xorg.conf.d/30-touchpad.conf`.
-- Linux VT switching itself is healthy: `chvt` works.
+- Linux VT switching is healthy: `chvt` works.
 - Ctrl+Alt+Fx failure was traced to Fn-lock/F-key mode; changing Fn mode makes VT switching work.
 - Hyprland is still available as fallback.
+- Important application commands currently known from Hyprland include Alacritty, Brave, Chromium, Thunar, OBS, Spotify Launcher, Steam, Telegram, Android helper, WhatsApp Web app, and Dolphin reference. Only migrate the ones the user actually wants.
 
-## Known cleanup item
+## Known Cleanup Item
 
 There are currently conflicting ASUS Fn-lock modprobe definitions:
 
 - `/etc/modprobe.d/asus-fnlock.conf`
 - `/etc/modprobe.d/asus-wmi-fnlock.conf`
 
-Resolve this during the structured migration, not ad-hoc.
+Do not chase this immediately unless it blocks the active phase. Resolve it when the Fn/Fx phase is active.
 
-## Next session
+## Execution Rules
 
-Design the migration workflow first, then execute it phase-by-phase from the clean Openbox baseline.
+These rules are mandatory for the migration session.
 
-Do not remove Hyprland until all required Openbox functionality has been validated.
+### 1. Follow the workflow, not random symptoms
+
+Always identify the active phase before changing anything.
+
+If a problem is outside the active phase and does not block it, record it and continue. Do not derail the workflow.
+
+### 2. Distinguish one-path work from real decision branches
+
+If the required next action is obvious and supported by current data, execute it directly.
+
+Do not invent a decision tree where none exists.
+
+Use an A/B branch only when two materially different paths are both plausible and the correct one depends on missing evidence.
+
+Example:
+
+- Good branch: input device is either libinput or a custom ASUS driver and the fix depends on which one owns the device.
+- Bad branch: checking every individual app shortcut one-by-one when all launchers can be migrated and tested as one batch.
+
+### 3. Batch work when the operations belong to one domain
+
+If several changes share the same owner, risk level, rollback method, and validation method, do them together.
+
+Examples:
+
+- migrate all application launcher shortcuts together;
+- validate audio input/output together;
+- validate Wi-Fi/Bluetooth connectivity as one connectivity phase;
+- validate Thunar right-click integrations together.
+
+Do not force one-command-per-turn when batching is safer and faster.
+
+### 4. Stop only for critical missing data
+
+Ask for evidence only when the missing data could change the action, damage the system, overwrite user data, or create a wrong persistent configuration.
+
+Do not ask for extra audits merely to feel certain.
+
+### 5. Prefer known-good baseline first
+
+For Openbox itself, start from standard package defaults, then add only the required user behavior.
+
+Do not restore old Openbox custom config wholesale unless a specific feature from it is intentionally selected.
+
+### 6. Hyprland is a reference, not the migration base
+
+Use the current Hyprland setup to discover:
+
+- useful application shortcuts;
+- useful hardware behavior;
+- scripts the user still relies on.
+
+Do not copy Hyprland-specific behavior blindly into X11/Openbox.
+
+### 7. Preserve user data
+
+Never delete user data, app profiles, project files, SSH data, browser profiles, or Hyprland fallback data during the migration.
+
+Hyprland cleanup is the final phase only.
+
+### 8. Validate by phase exit criteria
+
+Do not repeatedly verify trivial details.
+
+For each phase, define a small PASS checklist. Run the checklist once after the phase implementation is complete.
+
+If one item fails, repair only that item unless the failure invalidates the whole phase.
+
+## Workflow
+
+### Phase 0 — Baseline and rollback safety
+
+Goal:
+- Openbox raw boots reliably.
+- Hyprland remains available as fallback.
+- user data remains untouched.
+
+Current status: mostly PASS.
+
+Exit criteria:
+- `startx` enters Openbox.
+- Openbox can be exited back to TTY.
+- keyboard and pointer are usable.
+- no destructive migration step has occurred.
+
+### Phase 1 — Input and Fn/Fx behavior
+
+Goal:
+- touchpad behaves normally;
+- Ctrl+Alt+Fx VT switching works;
+- F8 emoji behavior works;
+- required Fn/Fx keys retain intended functions.
+
+Work as one input-domain phase.
+
+Do not tune unrelated apps here.
+
+Exit criteria:
+- tap-to-click PASS;
+- VT switching PASS;
+- F8 emoji PASS;
+- required Fn/Fx keys PASS.
+
+### Phase 2 — Openbox application shortcuts
+
+Goal:
+- migrate the useful `SUPER + ...` app launchers from Hyprland into Openbox.
+
+First collect the actual desired mapping, then patch the Openbox config in one batch.
+
+Do not test every shortcut in separate turns. Test all migrated shortcuts in one pass and repair only failures.
+
+Exit criteria:
+- all selected launchers PASS;
+- power shortcuts intentionally retained;
+- no Hyprland-only command is left in an Openbox binding.
+
+### Phase 3 — Audio and microphone
+
+Goal:
+- speakers/output work;
+- microphone/input works;
+- expected volume/mute hardware keys work.
+
+Use PipeWire/WirePlumber as the existing audio stack unless evidence shows otherwise.
+
+Exit criteria:
+- speaker playback PASS;
+- microphone capture PASS;
+- mute/volume keys PASS.
+
+### Phase 4 — Connectivity
+
+Goal:
+- Wi-Fi works normally;
+- Bluetooth works normally;
+- required connection tools remain usable.
+
+Do not redesign networking if NetworkManager/BlueZ already satisfy the goal.
+
+Exit criteria:
+- Wi-Fi connect/reconnect PASS;
+- Bluetooth power/scan/connect PASS.
+
+### Phase 5 — Thunar workflow
+
+Goal:
+- Thunar is the practical file manager for Openbox;
+- required right-click actions, archive behavior, open-with behavior, mounts, and user workflows work.
+
+Configure only the integrations the user actually uses.
+
+Exit criteria:
+- normal browsing PASS;
+- right-click/context actions PASS;
+- removable/media behavior PASS if required.
+
+### Phase 6 — Face authentication
+
+Goal:
+- Zenbook camera-based face verification integrates with PAM for login/sudo/password prompts where technically supported and acceptable.
+
+This is a security-sensitive phase. Validate the camera, chosen face-auth implementation, PAM ordering, fallback password path, and lockout behavior before enabling broadly.
+
+Never remove password fallback during initial rollout.
+
+Exit criteria:
+- face verification works for the chosen PAM targets;
+- password fallback still works;
+- failure does not lock the user out.
+
+### Phase 7 — Dotfiles finalization
+
+Goal:
+- repository reflects the actual validated Openbox setup;
+- no temporary backup files or abandoned experiments are committed;
+- setup is reproducible.
+
+At this phase, reconcile live config into the repository and commit/push the final state.
+
+### Phase 8 — Hyprland removal
+
+This phase is forbidden until Phases 1-7 are PASS.
+
+Goal:
+- remove Hyprland and Hyprland-only dependencies/config that are no longer required.
+
+Before deletion, confirm no required script, shortcut, portal, or hardware workflow still depends on Hyprland.
+
+## Session Operating Format
+
+At the start of each work unit, state only:
+
+- ACTIVE PHASE
+- FACT
+- BLOCKER, only if real
+- DECISION
+- EXECUTION
+- EXIT CRITERIA
+
+Do not generate extra audits, branches, or hypothetical failure trees unless they change the next action.
+
+If the data already proves the next step, proceed.
+
+If one phase can be completed safely in one batch, complete the batch and validate once.
+
+## Next Session Start
+
+Read this file first.
+
+Then begin from Phase 1, because Openbox raw already boots and touchpad tapping already works.
+
+Do not restart discovery from zero.
+Do not remove Hyprland.
+Do not investigate unrelated local Git changes unless they block the active migration phase.
