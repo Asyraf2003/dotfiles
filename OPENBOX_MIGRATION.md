@@ -31,16 +31,39 @@ Openbox is the target. Hyprland is only a temporary fallback and reference sourc
 - Linux VT switching is healthy: `chvt` works.
 - Ctrl+Alt+Fx failure was traced to Fn-lock/F-key mode; changing Fn mode makes VT switching work.
 - Hyprland is still available as fallback.
+- Openbox is now usable as the active working session.
+- Core Openbox launchers are installed and acceptance-tested: Alacritty, Brave, Chromium, Thunar, OBS, Spotify Launcher, Steam, Telegram, and WhatsApp Web. Android helper is the only selected launcher not yet acceptance-tested.
+- Window controls are implemented: SUPER+Arrow = half-screen placement; SUPER+SHIFT+Arrow = quarter-screen placement.
+- Workspace model is intentionally reduced to desktops 1-4. SUPER+1..4 switches desktop; SUPER+SHIFT+1..4 sends the active window.
+- Openbox desktop right-click root menu has been removed.
+- Volume-up is clamped to 100% with wpctl; brightness remains bounded by brightnessctl.
+- ASUS Fn mode is user-controlled with Fn+Esc; direct hotkey mode is the desired state.
+- The non-official Linux ASUS NumberPad driver was masked and removed from runtime after it caused touchpad instability. NumberPad restoration is deferred until the core migration is complete.
+- ASUS EC reset was completed.
+- Touchpad raw-coordinate jitter is still intermittent even with the NumberPad layer absent. A libinput hwdb fuzz override of 16 is active on ABS_X/Y and ABS_MT_POSITION_X/Y. The pointer is usable but this remains a tracked quality issue.
 - Important application commands currently known from Hyprland include Alacritty, Brave, Chromium, Thunar, OBS, Spotify Launcher, Steam, Telegram, Android helper, WhatsApp Web app, and Dolphin reference. Only migrate the ones the user actually wants.
 
-## Known Cleanup Item
+## Known Deferred Items
 
-There are currently conflicting ASUS Fn-lock modprobe definitions:
+### Touchpad raw jitter
 
-- `/etc/modprobe.d/asus-fnlock.conf`
-- `/etc/modprobe.d/asus-wmi-fnlock.conf`
+The physical ASUP1415:00 093A:300C touchpad intermittently emits changing raw coordinates while a finger is stationary.
 
-Do not chase this immediately unless it blocks the active phase. Resolve it when the Fn/Fx phase is active.
+Current evidence:
+- the issue exists below Openbox;
+- the non-official NumberPad driver has been removed from runtime;
+- ASUS EC reset has already been performed;
+- libinput hwdb fuzz 16 is active;
+- the touchpad remains usable, but jitter can recur.
+
+Decision:
+- do not let this derail the Openbox migration;
+- treat it as a separate hardware/kernel/firmware quality investigation after the core desktop phases;
+- do not reinstall the non-official NumberPad driver during the core migration.
+
+### NumberPad
+
+ASUS NumberPad functionality is intentionally deferred. Restore it only after the Openbox core is stable, and only with an approach that does not regress pointer stability.
 
 ## Execution Rules
 
@@ -123,7 +146,7 @@ Goal:
 - Hyprland remains available as fallback.
 - user data remains untouched.
 
-Current status: mostly PASS.
+Current status: PASS.
 
 Exit criteria:
 - `startx` enters Openbox.
@@ -143,6 +166,12 @@ Work as one input-domain phase.
 
 Do not tune unrelated apps here.
 
+Current status:
+- core input/Fn/Fx acceptance PASS;
+- touchpad remains usable;
+- intermittent raw touchpad jitter is tracked separately as a non-blocking deferred quality issue;
+- NumberPad is deferred.
+
 Exit criteria:
 - tap-to-click PASS;
 - VT switching PASS;
@@ -157,6 +186,11 @@ Goal:
 First collect the actual desired mapping, then patch the Openbox config in one batch.
 
 Do not test every shortcut in separate turns. Test all migrated shortcuts in one pass and repair only failures.
+
+Current status:
+- selected launcher/window/workspace shortcuts PASS;
+- Android helper (SUPER+SHIFT+A) remains untested;
+- Phase 2 stays open only for that acceptance item.
 
 Exit criteria:
 - all selected launchers PASS;
@@ -256,7 +290,13 @@ If one phase can be completed safely in one batch, complete the batch and valida
 
 Read this file first.
 
-Then begin from Phase 1, because Openbox raw already boots and touchpad tapping already works.
+Current continuation point:
+1. Openbox is already the active usable desktop.
+2. Verify Android helper with SUPER+SHIFT+A.
+3. In the same reporting batch, execute Phase 3 audio/microphone acceptance.
+4. If Android and Phase 3 PASS, close Phase 2 and Phase 3 and continue to Phase 4 connectivity.
+5. Keep intermittent touchpad raw jitter as a deferred hardware/kernel/firmware investigation; it must not derail Phases 3-7 unless usability degrades materially.
+6. Keep NumberPad disabled until the core migration is complete.
 
 Do not restart discovery from zero.
 Do not remove Hyprland.
