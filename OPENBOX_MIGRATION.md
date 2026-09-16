@@ -206,6 +206,13 @@ Goal:
 
 Use PipeWire/WirePlumber as the existing audio stack unless evidence shows otherwise.
 
+Current status: PASS.
+- PipeWire/WirePlumber services active;
+- speaker playback PASS;
+- microphone capture/playback PASS;
+- volume/mute hardware controls PASS;
+- volume-up is clamped at 100%.
+
 Exit criteria:
 - speaker playback PASS;
 - microphone capture PASS;
@@ -219,6 +226,15 @@ Goal:
 - required connection tools remain usable.
 
 Do not redesign networking if NetworkManager/BlueZ already satisfy the goal.
+
+Current status: PASS.
+- NetworkManager Wi-Fi disconnect/reconnect PASS;
+- connectivity check reports full;
+- Bluetooth service active;
+- controller power-on PASS;
+- active discovery PASS;
+- device discovery/cache PASS;
+- no paired-device connection test was required because no target device was selected.
 
 Exit criteria:
 - Wi-Fi connect/reconnect PASS;
@@ -292,11 +308,12 @@ Read this file first.
 
 Current continuation point:
 1. Openbox is already the active usable desktop.
-2. Verify Android helper with SUPER+SHIFT+A.
-3. In the same reporting batch, execute Phase 3 audio/microphone acceptance.
-4. If Android and Phase 3 PASS, close Phase 2 and Phase 3 and continue to Phase 4 connectivity.
-5. Keep intermittent touchpad raw jitter as a deferred hardware/kernel/firmware investigation; it must not derail Phases 3-7 unless usability degrades materially.
-6. Keep NumberPad disabled until the core migration is complete.
+2. Phase 3 audio/microphone is PASS.
+3. Phase 4 Wi-Fi/Bluetooth core connectivity is PASS.
+4. Phase 2 remains open only for Android helper SUPER+SHIFT+A acceptance.
+5. Continue with Phase 5 Thunar workflow and verify the Android helper in the same reporting batch.
+6. Keep intermittent touchpad raw jitter as a deferred hardware/kernel/firmware investigation; it must not derail Phases 5-7 unless usability degrades materially.
+7. Keep NumberPad disabled until the core migration is complete.
 
 Do not restart discovery from zero.
 Do not remove Hyprland.
