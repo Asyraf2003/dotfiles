@@ -137,6 +137,22 @@ For each phase, define a small PASS checklist. Run the checklist once after the 
 
 If one item fails, repair only that item unless the failure invalidates the whole phase.
 
+### 9. Evidence hierarchy and branch discipline
+
+Use evidence in this order:
+1. direct CLI output or screenshots from the active machine;
+2. official vendor/project documentation such as ASUS, Linux kernel, libinput, Openbox/Xfce, PipeWire/WirePlumber, NetworkManager/BlueZ, and Arch Wiki;
+3. only then use secondary references if official material is insufficient.
+
+Never mutate persistent configuration from guesswork.
+
+Classify every work unit before execution:
+- one-path: the evidence proves a single safe next action; execute the whole same-domain batch and validate once;
+- real two-path decision: two materially different valid actions remain and the choice changes behavior, risk, or user experience; stop and ask for the user's decision;
+- missing evidence: collect only the minimum CLI/screenshot/source data that can change the next action.
+
+Do not create fake branches for routine validation, and do not perform speculative tuning merely because a value exists.
+
 ## Workflow
 
 ### Phase 0 — Baseline and rollback safety
