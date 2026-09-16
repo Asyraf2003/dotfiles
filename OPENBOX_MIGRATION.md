@@ -264,6 +264,11 @@ Goal:
 
 Configure only the integrations the user actually uses.
 
+Current decision:
+- Brave is intentionally retained as the handler for local images and PDF files.
+- No dedicated image/PDF viewer will be added unless a real limitation appears.
+- Local file viewing is expected to work offline because Brave can render local file:// resources without network access.
+
 Exit criteria:
 - normal browsing PASS;
 - right-click/context actions PASS;
