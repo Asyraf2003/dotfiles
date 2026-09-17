@@ -13,16 +13,22 @@
 
 <focus>
   <focusNew>yes</focusNew>
+  <!-- always try to focus new windows when they appear. other rules do
+       apply -->
   <followMouse>no</followMouse>
+  <!-- move focus to a window when you move the mouse into it -->
   <focusLast>yes</focusLast>
+  <!-- focus the last used window when changing desktops, instead of the one
+       under the mouse pointer. when followMouse is enabled -->
   <underMouse>no</underMouse>
-  <focusDelay>0</focusDelay>
-  <raiseOnFocus>yes</raiseOnFocus>
+  <!-- move focus under the mouse, even when the mouse is not moving -->
+  <focusDelay>200</focusDelay>
+  <!-- when followMouse is enabled, the mouse must be inside the window for
+       this many milliseconds (1000 = 1 sec) before moving focus to it -->
+  <raiseOnFocus>no</raiseOnFocus>
+  <!-- when followMouse is enabled, and a window is given focus by moving the
+       mouse into it, also raise the window -->
 </focus>
-
-<cycling>
-  <dialog>no</dialog>
-</cycling>
 
 <placement>
   <policy>Smart</policy>
@@ -56,7 +62,7 @@
       D: omnipresent (on all desktops).
   -->
   <keepBorder>yes</keepBorder>
-  <animateIconify>no</animateIconify>
+  <animateIconify>yes</animateIconify>
   <font place="ActiveWindow">
     <name>sans</name>
     <size>8</size>
@@ -130,7 +136,7 @@
     <name>desktop 2</name>
     -->
   </names>
-  <popupTime>0</popupTime>
+  <popupTime>875</popupTime>
   <!-- The number of milliseconds to show the popup for when switching
        desktops.  Set this to 0 to disable the popup. -->
 </desktops>
@@ -185,29 +191,20 @@
 
 <keyboard>
   <chainQuitKey>C-g</chainQuitKey>
-<keybind key="F21">
-    <action name="Execute"><command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command></action>
-  </keybind>
-  <keybind key="XF86AudioLowerVolume">
-    <action name="Execute"><command>wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-</command></action>
-  </keybind>
-  <keybind key="XF86AudioRaiseVolume">
-    <action name="Execute"><command>wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+</command></action>
-  </keybind>
-  <keybind key="XF86MonBrightnessDown">
-    <action name="Execute"><command>brightnessctl set 5%-</command></action>
-  </keybind>
-  <keybind key="XF86MonBrightnessUp">
-    <action name="Execute"><command>brightnessctl set +5%</command></action>
-  </keybind>
-  <keybind key="XF86TouchpadToggle">
-    <action name="Execute"><command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command></action>
-  </keybind>
+
   <!-- Keybindings for desktop switching -->
-  <keybind key="W-1"><action name="GoToDesktop"><to>1</to></action></keybind>
-  <keybind key="W-2"><action name="GoToDesktop"><to>2</to></action></keybind>
-  <keybind key="W-3"><action name="GoToDesktop"><to>3</to></action></keybind>
-  <keybind key="W-4"><action name="GoToDesktop"><to>4</to></action></keybind>
+  <keybind key="C-A-Left">
+    <action name="GoToDesktop"><to>left</to><wrap>no</wrap></action>
+  </keybind>
+  <keybind key="C-A-Right">
+    <action name="GoToDesktop"><to>right</to><wrap>no</wrap></action>
+  </keybind>
+  <keybind key="C-A-Up">
+    <action name="GoToDesktop"><to>up</to><wrap>no</wrap></action>
+  </keybind>
+  <keybind key="C-A-Down">
+    <action name="GoToDesktop"><to>down</to><wrap>no</wrap></action>
+  </keybind>
   <keybind key="S-A-Left">
     <action name="SendToDesktop"><to>left</to><wrap>no</wrap></action>
   </keybind>
@@ -220,15 +217,24 @@
   <keybind key="S-A-Down">
     <action name="SendToDesktop"><to>down</to><wrap>no</wrap></action>
   </keybind>
+  <keybind key="W-F1">
+    <action name="GoToDesktop"><to>1</to></action>
+  </keybind>
+  <keybind key="W-F2">
+    <action name="GoToDesktop"><to>2</to></action>
+  </keybind>
+  <keybind key="W-F3">
+    <action name="GoToDesktop"><to>3</to></action>
+  </keybind>
+  <keybind key="W-F4">
+    <action name="GoToDesktop"><to>4</to></action>
+  </keybind>
   <keybind key="W-d">
     <action name="ToggleShowDesktop"/>
   </keybind>
 
   <!-- Keybindings for windows -->
-  <keybind key="A-F4">
-    <action name="Close"/>
-  </keybind>
-  <keybind key="A-Escape">
+<keybind key="A-Escape">
     <action name="Lower"/>
     <action name="FocusToBottom"/>
     <action name="Unfocus"/>
@@ -236,33 +242,9 @@
   <keybind key="A-space">
     <action name="ShowMenu"><menu>client-menu</menu></action>
   </keybind>
-  <keybind key="A-m">
-    <action name="ToggleMaximize"/>
-  </keybind>
-  <keybind key="A-n">
-    <action name="Iconify"/>
-  </keybind>
 
   <!-- Keybindings for window switching -->
-  <keybind key="A-Tab">
-    <action name="NextWindow">
-      <dialog>none</dialog>
-      <finalactions>
-        <action name="Focus"/>
-        <action name="Raise"/>
-      </finalactions>
-    </action>
-  </keybind>
-  <keybind key="A-S-Tab">
-    <action name="PreviousWindow">
-      <dialog>none</dialog>
-      <finalactions>
-        <action name="Focus"/>
-        <action name="Raise"/>
-      </finalactions>
-    </action>
-  </keybind>
-  <keybind key="C-A-Tab">
+<keybind key="C-A-Tab">
     <action name="NextWindow">
       <panels>yes</panels><desktop>yes</desktop>
       <finalactions>
@@ -273,144 +255,263 @@
     </action>
   </keybind>
 
-  <!-- Terminal -->
+  <!-- Keybindings for window switching with the arrow keys -->
+<!-- Keybindings for running applications -->
+  <keybind key="W-e">
+    <action name="Execute">
+      <startupnotify>
+        <enabled>true</enabled>
+        <name>Konqueror</name>
+      </startupnotify>
+      <command>kfmclient openProfile filemanagement</command>
+    </action>
+  </keybind>
+
+  <!-- Phase 1: Zenbook input / Fn-Fx -->
+
+  <!-- F8 emoji key: Zenbook emits Super+Period -->
+  <keybind key="W-period">
+    <action name="Execute">
+      <command>rofimoji --selector rofi --max-recent 0 --hidden-descriptions --action clipboard --clipboarder xclip --selector-args='-theme /home/asyraf/.config/rofi/emoji-grid.rasi'</command>
+    </action>
+  </keybind>
+
+  <!-- Audio -->
+  <keybind key="F21">
+    <action name="Execute">
+      <command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command>
+    </action>
+  </keybind>
+
+  <keybind key="XF86AudioMute">
+    <action name="Execute">
+      <command>wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle</command>
+    </action>
+  </keybind>
+
+  <keybind key="XF86AudioLowerVolume">
+    <action name="Execute">
+      <command>wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-</command>
+    </action>
+  </keybind>
+
+  <keybind key="XF86AudioRaiseVolume">
+    <action name="Execute">
+      <command>wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+</command>
+    </action>
+  </keybind>
+
+  <!-- Brightness -->
+  <keybind key="XF86MonBrightnessDown">
+    <action name="Execute">
+      <command>brightnessctl set 5%-</command>
+    </action>
+  </keybind>
+
+  <keybind key="XF86MonBrightnessUp">
+    <action name="Execute">
+      <command>brightnessctl set +5%</command>
+    </action>
+  </keybind>
+
+
+  <!-- Openbox migration: core keyboard batch -->
+
+  <!-- Applications -->
   <keybind key="W-Return">
     <action name="Execute"><command>alacritty</command></action>
   </keybind>
 
-  <!-- Epiphany Browser -->
-
-  <!-- Brave Browser -->
   <keybind key="W-b">
-    <action name="Execute"><command>brave --process-per-site --disable-background-networking --disable-sync --disable-renderer-backgrounding --disable-background-timer-throttling</command></action>
+    <action name="Execute"><command>brave</command></action>
   </keybind>
 
+  <keybind key="W-c">
+    <action name="Execute"><command>chromium</command></action>
+  </keybind>
 
-  <!--  <keybind key="W-v">
-    <action name="Execute"><command>code</command></action>
-  </keybind> -->
+  <keybind key="W-f">
+    <action name="Execute"><command>thunar</command></action>
+  </keybind>
 
-  <!-- Spotify -->
-
-  <!-- Live Wallpaper-->
-
-  <!-- Launch OBS Studio -->
   <keybind key="W-o">
     <action name="Execute"><command>obs</command></action>
   </keybind>
 
-  <!-- Thunar -->
-  <keybind key="W-f">
-    <action name="Execute"><command>thunar</command></action>
+  <keybind key="W-s">
+    <action name="Execute"><command>spotify-launcher</command></action>
   </keybind>
-  <!-- Fn+F8 laptop menghasilkan Super+P -->
-  <keybind key="W-p">
-    <action name="Execute">
-      <command>/home/asyraf/.local/bin/display-menu</command>
+
+  <keybind key="W-g">
+    <action name="Execute"><command>steam</command></action>
+  </keybind>
+
+  <keybind key="W-t">
+    <action name="Execute"><command>Telegram</command></action>
+  </keybind>
+
+  <keybind key="W-a">
+    <action name="Execute"><command>/home/asyraf/bin/android</command></action>
+  </keybind>
+
+  <keybind key="W-w">
+    <action name="Execute"><command>brave --app=https://web.whatsapp.com/</command></action>
+  </keybind>
+
+  <!-- Classic window control -->
+  <keybind key="A-F4">
+    <action name="Close"/>
+  </keybind>
+
+  <keybind key="A-m">
+    <action name="ToggleMaximize"/>
+  </keybind>
+
+  <keybind key="A-Tab">
+    <action name="NextWindow">
+      <finalactions>
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="Unshade"/>
+      </finalactions>
     </action>
   </keybind>
 
-  <!-- DBeaver dipindahkan agar tidak bentrok dengan Fn+F8 -->
-
-
-  <!-- Display mode menu -->
-  <keybind key="W-F8">
-    <action name="Execute">
-      <command>/home/asyraf/.local/bin/display-menu</command>
+  <keybind key="A-S-Tab">
+    <action name="PreviousWindow">
+      <finalactions>
+        <action name="Focus"/>
+        <action name="Raise"/>
+        <action name="Unshade"/>
+      </finalactions>
     </action>
   </keybind>
 
-  <!-- Restart Openbox -->
+  <!-- Directional focus -->
+  <keybind key="W-Left">
+    <action name="MoveResizeTo">
+      <x>0</x><y>0</y><width>50%</width><height>100%</height>
+    </action>
+  </keybind>
+  <keybind key="W-Right">
+    <action name="MoveResizeTo">
+      <x>-0</x><y>0</y><width>50%</width><height>100%</height>
+    </action>
+  </keybind>
+  <keybind key="W-Up">
+    <action name="MoveResizeTo">
+      <x>0</x><y>0</y><width>100%</width><height>50%</height>
+    </action>
+  </keybind>
+  <keybind key="W-Down">
+    <action name="MoveResizeTo">
+      <x>0</x><y>-0</y><width>100%</width><height>50%</height>
+    </action>
+  </keybind>
+<!-- Openbox is stacking, so Hyprland's tiled-window move becomes
+       deterministic relative window movement. -->
+  <keybind key="W-S-Left">
+    <action name="MoveResizeTo">
+      <x>0</x><y>-0</y><width>50%</width><height>50%</height>
+    </action>
+  </keybind>
+  <keybind key="W-S-Right">
+    <action name="MoveResizeTo">
+      <x>-0</x><y>-0</y><width>50%</width><height>50%</height>
+    </action>
+  </keybind>
+  <keybind key="W-S-Up">
+    <action name="MoveResizeTo">
+      <x>-0</x><y>0</y><width>50%</width><height>50%</height>
+    </action>
+  </keybind>
+  <keybind key="W-S-Down">
+    <action name="MoveResizeTo">
+      <x>0</x><y>0</y><width>50%</width><height>50%</height>
+    </action>
+  </keybind>
+<!-- Power -->
   <keybind key="W-r">
     <action name="Execute"><command>systemctl reboot</command></action>
   </keybind>
-
-  <!-- Shutdown -->
   <keybind key="W-q">
-    <action name="Execute"><command>systemctl poweroff -i</command></action>
+    <action name="Execute"><command>systemctl poweroff</command></action>
   </keybind>
-  
-  <!-- Suspend -->
   <keybind key="W-S-q">
     <action name="Execute"><command>systemctl suspend</command></action>
-  </keybind>  
-
-  <!-- Move window half screen -->
-  <keybind key="W-Left">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,0,0,960,1080</command>
-    </action>
   </keybind>
 
-  <keybind key="W-Right">
+  <!-- Media -->
+  <keybind key="XF86AudioMicMute">
     <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,960,0,960,1080</command>
+      <command>wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle</command>
     </action>
   </keybind>
-
-  <keybind key="W-Up">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,0,0,1920,540</command>
-    </action>
+  <keybind key="XF86AudioNext">
+    <action name="Execute"><command>playerctl next</command></action>
+  </keybind>
+  <keybind key="XF86AudioPause">
+    <action name="Execute"><command>playerctl play-pause</command></action>
+  </keybind>
+  <keybind key="XF86AudioPlay">
+    <action name="Execute"><command>playerctl play-pause</command></action>
+  </keybind>
+  <keybind key="XF86AudioPrev">
+    <action name="Execute"><command>playerctl previous</command></action>
   </keybind>
 
-  <keybind key="W-Down">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,0,540,1920,540</command>
+
+  <!-- Workspaces 1-10 -->
+  <keybind key="W-1">
+    <action name="GoToDesktop"><to>1</to></action>
+  </keybind>
+  <keybind key="W-S-1">
+    <action name="SendToDesktop">
+      <to>1</to>
+      <follow>no</follow>
     </action>
   </keybind>
-
-  <!-- Corners (quarter tiling) -->
-  <keybind key="W-S-Left">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,0,540,960,540</command>
+  <keybind key="W-2">
+    <action name="GoToDesktop"><to>2</to></action>
+  </keybind>
+  <keybind key="W-S-2">
+    <action name="SendToDesktop">
+      <to>2</to>
+      <follow>no</follow>
     </action>
   </keybind>
-
-  <keybind key="W-S-Right">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,960,540,960,540</command>
+  <keybind key="W-3">
+    <action name="GoToDesktop"><to>3</to></action>
+  </keybind>
+  <keybind key="W-S-3">
+    <action name="SendToDesktop">
+      <to>3</to>
+      <follow>no</follow>
     </action>
   </keybind>
-
-  <keybind key="W-S-Up">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,960,0,960,540</command>
-    </action>
+  <keybind key="W-4">
+    <action name="GoToDesktop"><to>4</to></action>
   </keybind>
-
-  <keybind key="W-S-Down">
-    <action name="Execute">
-      <command>wmctrl -r :ACTIVE: -e 0,0,0,960,540</command>
+  <keybind key="W-S-4">
+    <action name="SendToDesktop">
+      <to>4</to>
+      <follow>no</follow>
     </action>
   </keybind>
   <keybind key="Print">
     <action name="Execute">
-      <command>xfce4-screenshooter -f</command>
+      <command>/home/asyraf/bin/ss full</command>
     </action>
   </keybind>
   <keybind key="A-Print">
     <action name="Execute">
-      <command>xfce4-screenshooter -w</command>
+      <command>/home/asyraf/bin/ss window</command>
     </action>
   </keybind>
   <keybind key="S-Print">
     <action name="Execute">
-      <command>xfce4-screenshooter -r</command>
+      <command>/home/asyraf/bin/ss region</command>
     </action>
-  </keybind>
-
-  <keybind key="W-S-1">
-    <action name="SendToDesktop"><to>1</to><follow>no</follow></action>
-  </keybind>
-  <keybind key="W-S-2">
-    <action name="SendToDesktop"><to>2</to><follow>no</follow></action>
-  </keybind>
-  <keybind key="W-S-3">
-    <action name="SendToDesktop"><to>3</to><follow>no</follow></action>
-  </keybind>
-  <keybind key="W-S-4">
-    <action name="SendToDesktop"><to>4</to><follow>no</follow></action>
   </keybind>
 </keyboard>
 
@@ -446,7 +547,7 @@
     </mousebind>
     <mousebind button="A-Right" action="Drag">
       <action name="Resize"/>
-    </mousebind> 
+    </mousebind>
 
     <mousebind button="A-Middle" action="Press">
       <action name="Lower"/>
@@ -694,6 +795,13 @@
     </mousebind>
   </context>
 
+  <context name="Root">
+    <!-- Menus -->
+    <mousebind button="Middle" action="Press">
+      <action name="ShowMenu"><menu>client-list-combined-menu</menu></action>
+    </mousebind>
+</context>
+
   <context name="MoveResize">
     <mousebind button="Up" action="Click">
       <action name="GoToDesktop"><to>previous</to></action>
@@ -716,17 +824,17 @@
 
   <!-- default menu file (or custom one in $HOME/.config/openbox/) -->
   <file>menu.xml</file>
-  <hideDelay>0</hideDelay>
+  <hideDelay>200</hideDelay>
   <!-- if a press-release lasts longer than this setting (in milliseconds), the
        menu is hidden again -->
   <middle>no</middle>
   <!-- center submenus vertically about the parent entry -->
-  <submenuShowDelay>0</submenuShowDelay>
+  <submenuShowDelay>100</submenuShowDelay>
   <!-- time to delay before showing a submenu after hovering over the parent
        entry.
        if this is a negative value, then the delay is infinite and the
        submenu will not be shown until it is clicked on -->
-  <submenuHideDelay>0</submenuHideDelay>
+  <submenuHideDelay>400</submenuHideDelay>
   <!-- time to delay before hiding a submenu when selecting another
        entry in parent menu
        if this is a negative value, then the delay is infinite and the
@@ -741,6 +849,100 @@
   <application class="*">
     <decor>no</decor>
   </application>
+<!--
+  # this is an example with comments through out. use these to make your
+  # own rules, but without the comments of course.
+  # you may use one or more of the name/class/role/title/type rules to specify
+  # windows to match
+
+  <application name="the window's _OB_APP_NAME property (see obxprop)"
+              class="the window's _OB_APP_CLASS property (see obxprop)"
+          groupname="the window's _OB_APP_GROUP_NAME property (see obxprop)"
+         groupclass="the window's _OB_APP_GROUP_CLASS property (see obxprop)"
+               role="the window's _OB_APP_ROLE property (see obxprop)"
+              title="the window's _OB_APP_TITLE property (see obxprop)"
+               type="the window's _OB_APP_TYPE property (see obxprob)..
+                      (if unspecified, then it is 'dialog' for child windows)">
+  # you may set only one of name/class/role/title/type, or you may use more
+  # than one together to restrict your matches.
+
+  # the name, class, role, and title use simple wildcard matching such as those
+  # used by a shell. you can use * to match any characters and ? to match
+  # any single character.
+
+  # the type is one of: normal, dialog, splash, utility, menu, toolbar, dock,
+  #    or desktop
+
+  # when multiple rules match a window, they will all be applied, in the
+  # order that they appear in this list
+
+
+    # each rule element can be left out or set to 'default' to specify to not
+    # change that attribute of the window
+
+    <decor>yes</decor>
+    # enable or disable window decorations
+
+    <shade>no</shade>
+    # make the window shaded when it appears, or not
+
+    <position force="no">
+      # the position is only used if both an x and y coordinate are provided
+      # (and not set to 'default')
+      # when force is "yes", then the window will be placed here even if it
+      # says you want it placed elsewhere.  this is to override buggy
+      # applications who refuse to behave
+      <x>center</x>
+      # a number like 50, or 'center' to center on screen. use a negative number
+      # to start from the right (or bottom for <y>), ie -50 is 50 pixels from
+      # the right edge (or bottom). use 'default' to specify using value
+      # provided by the application, or chosen by openbox, instead.
+      <y>200</y>
+      <monitor>1</monitor>
+      # specifies the monitor in a xinerama setup.
+      # 1 is the first head, or 'mouse' for wherever the mouse is
+    </position>
+
+    <size>
+      # the size to make the window.
+      <width>20</width>
+      # a number like 20, or 'default' to use the size given by the application.
+      # you can use fractions such as 1/2 or percentages such as 75% in which
+      # case the value is relative to the size of the monitor that the window
+      # appears on.
+      <height>30%</height>
+    </size>
+
+    <focus>yes</focus>
+    # if the window should try be given focus when it appears. if this is set
+    # to yes it doesn't guarantee the window will be given focus. some
+    # restrictions may apply, but Openbox will try to
+
+    <desktop>1</desktop>
+    # 1 is the first desktop, 'all' for all desktops
+
+    <layer>normal</layer>
+    # 'above', 'normal', or 'below'
+
+    <iconic>no</iconic>
+    # make the window iconified when it appears, or not
+
+    <skip_pager>no</skip_pager>
+    # asks to not be shown in pagers
+
+    <skip_taskbar>no</skip_taskbar>
+    # asks to not be shown in taskbars. window cycling actions will also
+    # skip past such windows
+
+    <fullscreen>yes</fullscreen>
+    # make the window in fullscreen mode when it appears
+
+    <maximized>true</maximized>
+    # 'Horizontal', 'Vertical' or boolean (yes/no)
+  </application>
+
+  # end of the example
+-->
 </applications>
 
 </openbox_config>

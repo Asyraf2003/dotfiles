@@ -25,6 +25,8 @@ pipewire
 pipewire-alsa
 pipewire-pulse
 polkit-gnome
+rofi
+rofimoji
 rtkit
 thunar
 thunar-archive-plugin
