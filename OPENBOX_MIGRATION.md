@@ -4,7 +4,7 @@
 
 Migrate the Zenbook primary desktop session from Hyprland to raw Openbox while preserving the workflows and hardware functions that are actually useful.
 
-Openbox is the target. Hyprland is only a temporary fallback and reference source during migration.
+Openbox is the final primary desktop. The Hyprland ecosystem has been removed after Openbox acceptance passed.
 
 ## Required Final State
 
@@ -17,7 +17,7 @@ Openbox is the target. Hyprland is only a temporary fallback and reference sourc
 7. Microphone and speakers work correctly.
 8. Connectivity works correctly, especially Wi-Fi and Bluetooth.
 9. Thunar works fully, including required right-click/context-menu integrations.
-10. Hyprland is removed only after every required Openbox target above is validated PASS.
+10. Hyprland and its desktop-specific ecosystem are removed after Openbox acceptance PASS.
 
 ## Current Proven State
 
@@ -30,18 +30,18 @@ Openbox is the target. Hyprland is only a temporary fallback and reference sourc
 - Touchpad tap-to-click works through `/etc/X11/xorg.conf.d/30-touchpad.conf`.
 - Linux VT switching is healthy: `chvt` works.
 - Ctrl+Alt+Fx failure was traced to Fn-lock/F-key mode; changing Fn mode makes VT switching work.
-- Hyprland is still available as fallback.
+- Hyprland and its desktop-specific ecosystem have been removed after Openbox acceptance PASS.
 - Openbox is now usable as the active working session.
-- Core Openbox launchers are installed and acceptance-tested: Alacritty, Brave, Chromium, Thunar, OBS, Spotify Launcher, Steam, Telegram, and WhatsApp Web. Android helper is the only selected launcher not yet acceptance-tested.
+- Core Openbox launchers and selected shortcuts are installed and acceptance-tested PASS.
 - Window controls are implemented: SUPER+Arrow = half-screen placement; SUPER+SHIFT+Arrow = quarter-screen placement.
 - Workspace model is intentionally reduced to desktops 1-4. SUPER+1..4 switches desktop; SUPER+SHIFT+1..4 sends the active window.
 - Openbox desktop right-click root menu has been removed.
 - Volume-up is clamped to 100% with wpctl; brightness remains bounded by brightnessctl.
 - ASUS Fn mode is user-controlled with Fn+Esc; direct hotkey mode is the desired state.
-- The non-official Linux ASUS NumberPad driver was masked and removed from runtime after it caused touchpad instability. NumberPad restoration is deferred until the core migration is complete.
+- The non-official Linux ASUS NumberPad driver was masked and removed from runtime after it caused touchpad instability. NumberPad restoration remains deferred as a separate post-migration task.
 - ASUS EC reset was completed.
 - Touchpad raw-coordinate jitter is still intermittent even with the NumberPad layer absent. A libinput hwdb fuzz override of 16 is active on ABS_X/Y and ABS_MT_POSITION_X/Y. The pointer is usable but this remains a tracked quality issue.
-- Important application commands currently known from Hyprland include Alacritty, Brave, Chromium, Thunar, OBS, Spotify Launcher, Steam, Telegram, Android helper, WhatsApp Web app, and Dolphin reference. Only migrate the ones the user actually wants.
+- Selected application workflows migrated from the former Hyprland setup have been acceptance-tested under Openbox.
 
 ## Known Deferred Items
 
@@ -63,7 +63,7 @@ Decision:
 
 ### NumberPad
 
-ASUS NumberPad functionality is intentionally deferred. Restore it only after the Openbox core is stable, and only with an approach that does not regress pointer stability.
+ASUS NumberPad functionality remains intentionally deferred after the core migration. Restore it only with an approach that does not regress pointer stability.
 
 ## Execution Rules
 
@@ -159,7 +159,7 @@ Do not create fake branches for routine validation, and do not perform speculati
 
 Goal:
 - Openbox raw boots reliably.
-- Hyprland remains available as fallback.
+- Openbox session startup is accepted as the final desktop path.
 - user data remains untouched.
 
 Current status: PASS.
@@ -205,8 +205,8 @@ Do not test every shortcut in separate turns. Test all migrated shortcuts in one
 
 Current status:
 - selected launcher/window/workspace shortcuts PASS;
-- Android helper (SUPER+SHIFT+A) remains untested;
-- Phase 2 stays open only for that acceptance item.
+- selected launcher shortcuts acceptance PASS;
+- Phase 2 PASS.
 
 Exit criteria:
 - all selected launchers PASS;
@@ -290,6 +290,8 @@ Exit criteria:
 
 ### Phase 7 — Dotfiles finalization
 
+Status: PASS
+
 Goal:
 - repository reflects the actual validated Openbox setup;
 - no temporary backup files or abandoned experiments are committed;
@@ -299,7 +301,7 @@ At this phase, reconcile live config into the repository and commit/push the fin
 
 ### Phase 8 — Hyprland removal
 
-This phase is forbidden until Phases 1-7 are PASS.
+Status: PASS / CLOSED
 
 Goal:
 - remove Hyprland and Hyprland-only dependencies/config that are no longer required.
@@ -323,19 +325,18 @@ If the data already proves the next step, proceed.
 
 If one phase can be completed safely in one batch, complete the batch and validate once.
 
-## Next Session Start
+## Final Migration State
 
-Read this file first.
+- Raw Openbox is the primary desktop.
+- Core input and Fn/Fx workflow: PASS.
+- Application shortcuts and window/workspace controls: PASS.
+- Audio and microphone: PASS.
+- Wi-Fi and Bluetooth connectivity: PASS.
+- Thunar and file workflow: PASS.
+- Face authentication with password fallback: PASS.
+- Dotfiles finalization and package persistence: PASS.
+- Hyprland/Quickshell/Waybar/Wofi ecosystem removal: PASS.
+- Touchpad raw jitter: DEFERRED as a non-blocking hardware/kernel/firmware quality issue.
+- ASUS NumberPad restoration: DEFERRED as a separate post-migration task.
 
-Current continuation point:
-1. Openbox is already the active usable desktop.
-2. Phase 3 audio/microphone is PASS.
-3. Phase 4 Wi-Fi/Bluetooth core connectivity is PASS.
-4. Phase 2 remains open only for Android helper SUPER+SHIFT+A acceptance.
-5. Continue with Phase 5 Thunar workflow and verify the Android helper in the same reporting batch.
-6. Keep intermittent touchpad raw jitter as a deferred hardware/kernel/firmware investigation; it must not derail Phases 5-7 unless usability degrades materially.
-7. Keep NumberPad disabled until the core migration is complete.
-
-Do not restart discovery from zero.
-Do not remove Hyprland.
-Do not investigate unrelated local Git changes unless they block the active migration phase.
+Core Openbox migration is CLOSED.
